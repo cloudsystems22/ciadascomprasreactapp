@@ -1,10 +1,11 @@
 import { Outlet } from "react-router-dom";
+import PublicHeader from "../header/PublicHeader";
 
 export default function PublicLayout() {
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-blue-600 text-white p-4">Cia das Compras</header>
-
+      <PublicHeader />
+      
       <main className="flex-1 p-6 bg-gray-50">
         <Outlet />
       </main>

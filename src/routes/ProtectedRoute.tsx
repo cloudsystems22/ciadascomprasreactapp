@@ -1,11 +1,12 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import type { ReactNode } from "react";
 
 export default function ProtectedRoute({
   children,
   role,
 }: {
-  children: JSX.Element;
+  children: ReactNode;
   role?: "admin" | "comprador" | "vendedor";
 }) {
   const { user } = useAuth();
