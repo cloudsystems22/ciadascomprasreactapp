@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEnvelope, faPhone } from "@fortawesome/free-solid-svg-icons";
+import LoginDropdown from "./LoginDropdown";
 
 export default function PublicHeader() {
   const { user, logout } = useAuth();
@@ -11,21 +14,16 @@ export default function PublicHeader() {
         <div className="w-full px-4 py-2 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
-              📞 <span>+55 (19) 3212-1373</span>
+              <FontAwesomeIcon icon={faPhone} /> <span>+55 (19) 3212-1373</span>
             </span>
             <span className="hidden md:flex items-center gap-1">
-              ✉️ <span>webmaster@ciadascompras.com.br</span>
+              <FontAwesomeIcon icon={faEnvelope} /> <span>webmaster@ciadascompras.com.br</span>
             </span>
           </div>
 
           <div className="flex items-center gap-4">
             {!user ? (
-              <Link
-                to="/login"
-                className="bg-blue-600 hover:bg-blue-700 transition px-4 py-1.5 rounded-md text-white font-semibold text-xs"
-              >
-                Acesso ao sistema
-              </Link>
+              <LoginDropdown />
             ) : (
               <>
                 <span className="hidden sm:block text-gray-300">
