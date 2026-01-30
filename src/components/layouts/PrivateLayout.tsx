@@ -1,21 +1,21 @@
 import { Outlet } from "react-router-dom";
+import Sidebar from "./Sidebar";
+import Header from "./Header";
 
 export default function PrivateLayout() {
+  // TODO: Obter role do contexto de autenticação real
+  const userRole = 'admin'; 
+
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-64 bg-gray-900 text-white p-4">
-        Sidebar
-      </aside>
-
-      <div className="flex-1 flex flex-col">
-        <header className="bg-white shadow p-4">Header do Sistema</header>
-
-        <main className="flex-1 p-6 bg-gray-100">
+    <div className="flex min-h-screen bg-gray-50 font-sans">
+      <Sidebar role={userRole} />
+      <div className="flex-1 ml-64 flex flex-col">
+        <Header />
+        <main className="p-6 flex-1">
           <Outlet />
         </main>
-
-        <footer className="bg-gray-200 p-3 text-center">
-          Sistema interno
+        <footer className="p-4 text-center text-xs text-gray-400">
+          © 2026 Cia das Compras. Todos os direitos reservados.
         </footer>
       </div>
     </div>
