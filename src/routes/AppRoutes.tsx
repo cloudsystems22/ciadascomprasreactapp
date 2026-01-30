@@ -8,6 +8,7 @@ import Login from "../pages/public/Login";
 import DashboardAdmin from "../pages/admin/DashboardAdmin";
 import DashboardBuyer from "../pages/buyers/DashboardBuyer";
 import DashboardSeller from "../pages/sellers/DashboardSeller";
+import CotacoesPages from "../pages/admin/CotacoesPages";
 
 export default function AppRoutes() {
   return (
@@ -25,6 +26,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute role="admin">
               <DashboardAdmin />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/cotacoes"
+          element={
+            <ProtectedRoute role="admin">
+              <CotacoesPages />
             </ProtectedRoute>
           }
         />

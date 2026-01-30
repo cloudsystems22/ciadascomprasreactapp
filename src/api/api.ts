@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "/api", // seu backend PHP
-  withCredentials: true,
+  baseURL: "https://www.ciadascompras.com.br/api", // seu backend PHP
+  withCredentials: false,
   headers: {
     "Content-Type": "application/json",
   },
