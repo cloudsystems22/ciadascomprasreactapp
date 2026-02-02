@@ -8,6 +8,15 @@ import {
   faCreditCard,
   faShoppingBag,
   faBoxOpen,
+  faCartArrowDown,
+  faCertificate,
+  faDollarSign,
+  faUserTie,
+  faFileAlt,
+  faBook,
+  faInfoCircle,
+  faEnvelope,
+  faAsterisk,
 } from "@fortawesome/free-solid-svg-icons";
 
 type UserRole = 'admin' | 'buyer' | 'seller';
@@ -54,8 +63,16 @@ export default function Sidebar({ role = 'admin' }: SidebarProps) {
         {role === 'seller' && (
            <>
             <div className="text-xs font-bold text-gray-400 uppercase mb-2 mt-4 px-3">Vendedor</div>
-            <SidebarLink icon={faBoxOpen} label="Meus Produtos" href="/seller/products" />
-            <SidebarLink icon={faFileInvoiceDollar} label="Oportunidades" href="/seller/opportunities" />
+            <SidebarLink icon={faCartArrowDown} label="Cotações" href="/seller/quotes" />
+            <SidebarLink icon={faCertificate} label="Promoções" href="/seller/promotions" />
+            <SidebarLink icon={faDollarSign} label="Lista de Preços" href="/seller/price-list" />
+            <SidebarLink icon={faBolt} label="Políticas/Serviços" href="/seller/policies" />
+            <SidebarLink icon={faUserTie} label="Perfil" href="/seller/profile" />
+            <SidebarLink icon={faFileAlt} label="Relatórios" href="/seller/reports" />
+            <SidebarLink icon={faBook} label="Catálogo Eletrônico" href="/seller/catalog" />
+            <SidebarLink icon={faInfoCircle} label="Tutorial" href="/seller/tutorials" />
+            <SidebarLink icon={faEnvelope} label="Indique" href="/seller/referral" />
+            <SidebarLink icon={faAsterisk} label="CiaPag" href="/seller/ciapag" />
            </>
         )}
       </nav>

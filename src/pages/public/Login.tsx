@@ -15,9 +15,9 @@ export default function Login() {
   function handleLogin(event: React.FormEvent) {
     event.preventDefault(); // Prevent default form submission
     // Aqui você normalmente obteria o e-mail/senha do estado do formulário
-    // Por enquanto, manteremos o login fixo
-    login({ name: "David", role: "admin" });
-    navigate("/admin");
+    // Por enquanto, manteremos o login fixo role?: "admin" | "comprador" | "vendedor";
+    login({ name: "David", role: "seller" });
+    navigate("/seller");
   }
 
   return (

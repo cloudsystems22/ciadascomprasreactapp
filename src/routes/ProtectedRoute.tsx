@@ -7,7 +7,7 @@ export default function ProtectedRoute({
   role,
 }: {
   children: ReactNode;
-  role?: "admin" | "comprador" | "vendedor";
+  role?: "admin" | "buyer" | "seller";
 }) {
   const { user } = useAuth();
 
