@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -11,29 +11,132 @@ import {
   faFileExcel,
   faFileAlt,
   faCalendarAlt,
+  faSearch,
+  faSort,
+  faSortUp,
+  faSortDown,
 } from "@fortawesome/free-solid-svg-icons";
+import { getPedidos, type Pedido as ApiPedido } from "../../api/pedidos";
+
+interface OrderStat {
+  label: string;
+  value: string;
+  icon: any;
+  color: string;
+}
+
+type OrderStatus = 'Pendente' | 'Ok' | 'Rejeitados' | 'Outro';
+
+interface RecentOrder {
+    id: string;
+    customer: string;
+    date: string;
+    total: string;
+    status: OrderStatus;
+}
+
+const mapStatus = (status: number): OrderStatus => {
+    switch (status) {
+        case 1: return 'Pendente';
+        case 2: return 'Ok'; // Assumindo que 2 = Ok
+        case 3: return 'Rejeitados'; // Assumindo que 3 = Rejeitados
+        default: return 'Outro';
+    }
+};
 
 export default function DashboardSeller() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [exportLayout, setExportLayout] = useState("XML");
+  
+  const [stats, setStats] = useState<OrderStat[]>([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Estados para paginação e filtro
+  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string>("1");
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 30;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'dt_data_ped', direction: 'desc' });
 
-  // Dados fictícios para o dashboard
-  const stats = [
-    { label: "Total de Pedidos", value: "1,234", icon: faShoppingBag, color: "bg-blue-500" },
-    { label: "Pendente", value: "23", icon: faClock, color: "bg-yellow-500" },
-    { label: "Ok", value: "1,150", icon: faCheckCircle, color: "bg-green-500" },
-    { label: "Rejeitados", value: "61", icon: faTimesCircle, color: "bg-red-500" },
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        const sellerId = 126; 
+        
+        const params: any = { 
+            id_fornecedor_cli: sellerId, 
+            limit: itemsPerPage,
+            page: currentPage,
+            sort_by: sortConfig?.key,
+            sort_order: sortConfig?.direction.toUpperCase(),
+        };
 
-  const recentOrders = [
-    { id: "#ORD-001", customer: "Auto Peças Silva", date: "02/02/2026", total: "R$ 450,00", status: "Pendente" },
-    { id: "#ORD-002", customer: "Mecânica Jato", date: "01/02/2026", total: "R$ 1.200,00", status: "Ok" },
-    { id: "#ORD-003", customer: "Centro Automotivo X", date: "01/02/2026", total: "R$ 890,00", status: "Ok" },
-    { id: "#ORD-004", customer: "Oficina do Zé", date: "31/01/2026", total: "R$ 150,00", status: "Rejeitados" },
-    { id: "#ORD-005", customer: "Auto Center Top", date: "30/01/2026", total: "R$ 2.350,00", status: "Ok" },
-  ];
+        if (statusFilter !== "") {
+            params.status_ped = parseInt(statusFilter);
+        }
+
+        const pedidosData = await getPedidos(params);
+
+        const pendenteCount = pedidosData.items.filter(p => p.fl_status_ped === 1).length;
+        const okCount = pedidosData.items.filter(p => p.fl_status_ped === 2).length; // Assumindo status
+        const rejeitadosCount = pedidosData.items.filter(p => p.fl_status_ped === 3).length; // Assumindo status
+
+        setStats([
+          { label: "Total de Pedidos", value: pedidosData.totalCount.toString(), icon: faShoppingBag, color: "bg-blue-500" },
+          { label: "Pendente", value: pendenteCount.toString(), icon: faClock, color: "bg-yellow-500" },
+          { label: "Ok", value: okCount.toString(), icon: faCheckCircle, color: "bg-green-500" },
+          { label: "Rejeitados", value: rejeitadosCount.toString(), icon: faTimesCircle, color: "bg-red-500" },
+        ]);
+
+        const mappedOrders = pedidosData.items.map((p: ApiPedido) => ({
+          id: p.id_pedido_ped,
+          customer: p.NM_NOME_LOJISTA,
+          date: new Date(p.dt_data_ped).toLocaleDateString('pt-BR'),
+          total: p.vl_valor_ped.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          status: mapStatus(p.fl_status_ped),
+        }));
+        setRecentOrders(mappedOrders);
+        setTotalItems(pedidosData.totalCount);
+
+      } catch (error) {
+        console.error("Erro ao carregar dados do dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, [currentPage, statusFilter, sortConfig]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setCurrentPage(1);
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return faSort;
+    }
+    return sortConfig.direction === 'asc' ? faSortUp : faSortDown;
+  };
+
+  const filteredOrders = useMemo(() => {
+    if (!searchTerm) {
+      return recentOrders;
+    }
+    return recentOrders.filter(order => 
+      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [recentOrders, searchTerm]);
 
   const toggleOrder = (id: string) => {
     if (selectedOrders.includes(id)) {
@@ -44,10 +147,10 @@ export default function DashboardSeller() {
   };
 
   const toggleAll = () => {
-    if (selectedOrders.length === recentOrders.length) {
+    if (selectedOrders.length === filteredOrders.length && filteredOrders.length > 0) {
       setSelectedOrders([]);
     } else {
-      setSelectedOrders(recentOrders.map((o) => o.id));
+      setSelectedOrders(filteredOrders.map((o) => o.id));
     }
   };
 
@@ -73,6 +176,33 @@ export default function DashboardSeller() {
                 />
             </div>
 
+            {/* Status Filter */}
+            <div className="flex items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 flex-1 sm:flex-none">
+                <span className="text-sm text-gray-500 mr-2 whitespace-nowrap">Status:</span>
+                <select
+                    value={statusFilter}
+                    onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                    className="text-sm font-semibold text-gray-800 outline-none bg-transparent w-full sm:w-auto cursor-pointer"
+                >
+                    <option value="">Todos</option>
+                    <option value="1">Pendente</option>
+                    <option value="2">Ok</option>
+                    <option value="3">Rejeitados</option>
+                </select>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative flex items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 flex-1 sm:flex-none">
+                <FontAwesomeIcon icon={faSearch} className="text-gray-400 mr-2" />
+                <input
+                    type="text"
+                    placeholder="Buscar por ID ou cliente..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="text-sm font-semibold text-gray-800 outline-none bg-transparent w-full"
+                />
+            </div>
+
             {/* Export Buttons */}
             <div className="flex gap-2">
                 <button 
@@ -93,17 +223,23 @@ export default function DashboardSeller() {
 
       {/* Grid de Estatísticas (KPIs) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl shadow-sm p-6 flex items-center border border-gray-100 hover:shadow-md transition-shadow">
-            <div className={`${stat.color} p-4 rounded-lg text-white mr-4 shadow-sm`}>
-              <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
+        {loading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="bg-gray-100 rounded-xl p-6 h-28 animate-pulse"></div>
+            ))
+        ) : (
+            stats.map((stat, index) => (
+            <div key={index} className="bg-white rounded-xl shadow-sm p-6 flex items-center border border-gray-100 hover:shadow-md transition-shadow">
+                <div className={`${stat.color} p-4 rounded-lg text-white mr-4 shadow-sm`}>
+                <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
+                </div>
+                <div>
+                <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
+                </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-            </div>
-          </div>
-        ))}
+            ))
+        )}
       </div>
 
       {/* Seção de Gráficos */}
@@ -179,21 +315,27 @@ export default function DashboardSeller() {
                         <th className="px-6 py-4 border-b border-gray-100 w-4">
                             <input 
                                 type="checkbox" 
-                                checked={selectedOrders.length === recentOrders.length && recentOrders.length > 0} 
+                                checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0} 
                                 onChange={toggleAll}
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                         </th>
-                        <th className="px-6 py-4 border-b border-gray-100">ID</th>
-                        <th className="px-6 py-4 border-b border-gray-100">Cliente</th>
-                        <th className="px-6 py-4 border-b border-gray-100">Data</th>
-                        <th className="px-6 py-4 border-b border-gray-100">Total</th>
+                        <th onClick={() => handleSort('id_pedido_ped')} className="px-6 py-4 border-b border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">ID <FontAwesomeIcon icon={getSortIcon('id_pedido_ped')} className="ml-1" /></th>
+                        <th onClick={() => handleSort('NM_NOME_LOJISTA')} className="px-6 py-4 border-b border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">Cliente <FontAwesomeIcon icon={getSortIcon('NM_NOME_LOJISTA')} className="ml-1" /></th>
+                        <th onClick={() => handleSort('dt_data_ped')} className="px-6 py-4 border-b border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">Data <FontAwesomeIcon icon={getSortIcon('dt_data_ped')} className="ml-1" /></th>
+                        <th onClick={() => handleSort('vl_valor_ped')} className="px-6 py-4 border-b border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">Total <FontAwesomeIcon icon={getSortIcon('vl_valor_ped')} className="ml-1" /></th>
                         <th className="px-6 py-4 border-b border-gray-100">Status</th>
                         <th className="px-6 py-4 border-b border-gray-100 text-right">Ação</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                    {recentOrders.map((order) => (
+                    {loading && (
+                        <tr><td colSpan={7} className="text-center p-8 text-gray-500">Carregando pedidos...</td></tr>
+                    )}
+                    {!loading && filteredOrders.length === 0 && (
+                        <tr><td colSpan={7} className="text-center p-8 text-gray-500">Nenhum pedido recente encontrado.</td></tr>
+                    )}
+                    {!loading && filteredOrders.map((order) => (
                         <tr key={order.id} className="hover:bg-blue-50/30 transition-colors">
                             <td className="px-6 py-4 border-b border-gray-100">
                                 <input 
@@ -217,7 +359,7 @@ export default function DashboardSeller() {
                                 </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                                <Link to={`/order/${order.id.replace('#', '')}`} className="text-gray-400 hover:text-blue-600 font-medium transition-colors">
+                                <Link to={`/order/${order.id}`} className="text-gray-400 hover:text-blue-600 font-medium transition-colors">
                                     Detalhes
                                 </Link>
                             </td>
@@ -225,6 +367,13 @@ export default function DashboardSeller() {
                     ))}
                 </tbody>
             </table>
+        </div>
+        <div className="p-4 border-t border-gray-100">
+            <Pagination 
+                currentPage={currentPage} 
+                totalPages={Math.ceil(totalItems / itemsPerPage)} 
+                onPageChange={setCurrentPage} 
+            />
         </div>
       </div>
 
@@ -276,4 +425,47 @@ export default function DashboardSeller() {
       )}
     </div>
   );
+}
+
+function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: number, totalPages: number, onPageChange: (page: number) => void }) {
+    if (totalPages <= 1) return null;
+  
+    const getPageNumbers = () => {
+      const delta = 1;
+      const range = [];
+      const rangeWithDots: (number | string)[] = [];
+      let l;
+  
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+          range.push(i);
+        }
+      }
+  
+      for (let i of range) {
+        if (l) {
+          if (i - l === 2) {
+            rangeWithDots.push(l + 1);
+          } else if (i - l !== 1) {
+            rangeWithDots.push('...');
+          }
+        }
+        rangeWithDots.push(i);
+        l = i;
+      }
+  
+      return rangeWithDots;
+    };
+  
+    const pageNumbers = getPageNumbers();
+  
+    return (
+      <div className="flex justify-center items-center flex-wrap gap-1">
+        <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 text-sm font-semibold text-slate-700 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">&lt;</button>
+        {pageNumbers.map((number, index) => (
+          number === '...' ? <span key={`dots-${index}`} className="px-2 py-1 text-sm text-slate-500">...</span> : <button key={number} onClick={() => onPageChange(number as number)} className={`px-3 py-1 text-sm font-semibold rounded-lg shadow-sm ${currentPage === number ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 border border-gray-200 hover:bg-gray-50'}`}>{number}</button>
+        ))}
+        <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 text-sm font-semibold text-slate-700 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">&gt;</button>
+      </div>
+    );
 }
