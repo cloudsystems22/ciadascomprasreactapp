@@ -57,6 +57,28 @@ export interface PedidoDetalhe {
     desp_acess: number;
     total_cartao: number;
     parcelas: any;
+    fornecedor_nome?: string;
+    fornecedor_cnpj?: string;
+    fornecedor_contato?: string;
+    fornecedor_email?: string;
+    fornecedor_telefone?: string;
+    fornecedor_endereco?: string;
+    fornecedor_numero?: number;
+    fornecedor_bairro?: string | null;
+    fornecedor_cep?: string;
+    fornecedor_cidade?: string;
+    fornecedor_uf?: string;
+    lojista_nome?: string;
+    lojista_cnpj?: string;
+    lojista_contato?: string;
+    lojista_email?: string;
+    lojista_telefone?: string;
+    lojista_endereco?: string;
+    lojista_numero?: number;
+    lojista_bairro?: string | null;
+    lojista_cep?: string;
+    lojista_cidade?: string | null;
+    lojista_uf?: string | null;
 }
 
 export interface PedidoItem {
@@ -132,7 +154,7 @@ export const getFaturamento = async (id_fornecedor_cli: number): Promise<Faturam
 };
 
 export const getPedido = async (id: string): Promise<PedidoDetalhe> => {
-    const response = await api.get('/pedidos', { params: { id } });
+    const response = await api.get('/pedidos/details', { params: { id } });
     return response.data;
 };
 

@@ -86,24 +86,24 @@ export default function OrderDetails() {
           date: pedidoData.dt_data_ped,
           status: mapApiStatus(pedidoData.fl_status_ped),
           buyer: {
-            name: `Lojista #${pedidoData.id_lojista_cli}`, // Placeholder pois a API não retorna nome
-            cnpj: "Não informado",
-            contact: "",
-            email: "",
-            phone: "",
-            address: "",
-            city: "",
-            state: ""
+            name: pedidoData.lojista_nome || `Lojista #${pedidoData.id_lojista_cli}`,
+            cnpj: pedidoData.lojista_cnpj || "Não informado",
+            contact: pedidoData.lojista_contato || "",
+            email: pedidoData.lojista_email || "",
+            phone: pedidoData.lojista_telefone || "",
+            address: `${pedidoData.lojista_endereco || ''}, ${pedidoData.lojista_numero || ''} ${pedidoData.lojista_bairro ? '- ' + pedidoData.lojista_bairro : ''}`,
+            city: pedidoData.lojista_cidade || "",
+            state: pedidoData.lojista_uf || ""
           },
           seller: {
-            name: `Fornecedor #${pedidoData.id_fornecedor_cli}`, // Placeholder
-            cnpj: "Não informado",
-            contact: "",
-            email: "",
-            phone: "",
-            address: "",
-            city: "",
-            state: ""
+            name: pedidoData.fornecedor_nome || `Fornecedor #${pedidoData.id_fornecedor_cli}`,
+            cnpj: pedidoData.fornecedor_cnpj || "Não informado",
+            contact: pedidoData.fornecedor_contato || "",
+            email: pedidoData.fornecedor_email || "",
+            phone: pedidoData.fornecedor_telefone || "",
+            address: `${pedidoData.fornecedor_endereco || ''}, ${pedidoData.fornecedor_numero || ''} ${pedidoData.fornecedor_bairro ? '- ' + pedidoData.fornecedor_bairro : ''}`,
+            city: pedidoData.fornecedor_cidade || "",
+            state: pedidoData.fornecedor_uf || ""
           },
           items: (Array.isArray(itensData) ? itensData : []).map(item => ({
             id: item.ID_PECA_PEC, // Usando ID da peça como ID do item
