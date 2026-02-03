@@ -16,7 +16,7 @@ import {
   faSortUp,
   faSortDown,
 } from "@fortawesome/free-solid-svg-icons";
-import { getPedidos, type Pedido as ApiPedido } from "../../api/pedidos";
+import { getPedidos, getFaturamento, type Pedido as ApiPedido, type FaturamentoData } from "../../api/pedidos";
 
 interface OrderStat {
   label: string;
@@ -45,20 +45,21 @@ const mapStatus = (status: number): OrderStatus => {
 };
 
 export default function DashboardSeller() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState("");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [exportLayout, setExportLayout] = useState("XML");
   
   const [stats, setStats] = useState<OrderStat[]>([]);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [faturamentoData, setFaturamentoData] = useState<FaturamentoData[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Estados para paginação e filtro
   const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>("0"); // 0 é Pendente
+  const [statusFilter, setStatusFilter] = useState<string>(""); // "" é Todos
   const [totalItems, setTotalItems] = useState(0);
-  const itemsPerPage = 30;
+  const itemsPerPage = 5;
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'dt_data_ped', direction: 'desc' });
 
@@ -66,12 +67,12 @@ export default function DashboardSeller() {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const sellerId = 126; 
+        const sellerId = 5097; 
         
         const params: any = { 
             id_fornecedor_cli: sellerId, 
-            limit: itemsPerPage,
-            page: currentPage,
+            limit: 30,
+            page: 1,
             sort_by: sortConfig?.key,
             sort_order: sortConfig?.direction.toUpperCase(),
         };
@@ -81,10 +82,14 @@ export default function DashboardSeller() {
         }
 
         if (selectedDate) {
-            params.dt_data_ped = selectedDate;
+            params.dt_ini = selectedDate;
         }
 
-        const pedidosData = await getPedidos(params);
+        const [pedidosData, faturamento] = await Promise.all([
+            getPedidos(params),
+            getFaturamento(sellerId)
+        ]);
+        console.log("Dados do gráfico de barras:", faturamento);
 
         const pendenteCount = pedidosData.items.filter(p => p.fl_status_ped === 0).length;
         const okCount = pedidosData.items.filter(p => p.fl_status_ped === 1).length;
@@ -105,7 +110,8 @@ export default function DashboardSeller() {
           status: mapStatus(p.fl_status_ped),
         }));
         setRecentOrders(mappedOrders);
-        setTotalItems(pedidosData.totalCount);
+        setTotalItems(mappedOrders.length);
+        setFaturamentoData(faturamento);
 
       } catch (error) {
         console.error("Erro ao carregar dados do dashboard:", error);
@@ -114,7 +120,7 @@ export default function DashboardSeller() {
       }
     };
     fetchDashboardData();
-  }, [currentPage, statusFilter, sortConfig, selectedDate]);
+  }, [statusFilter, sortConfig, selectedDate]);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -142,6 +148,22 @@ export default function DashboardSeller() {
     );
   }, [recentOrders, searchTerm]);
 
+  const chartData = useMemo(() => {
+    const total = recentOrders.length;
+    const pendente = recentOrders.filter(o => o.status === 'Pendente').length;
+    const ok = recentOrders.filter(o => o.status === 'Ok').length;
+    const rejeitados = recentOrders.filter(o => o.status === 'Rejeitados').length;
+    
+    const pendentePct = total > 0 ? (pendente / total) * 100 : 0;
+    const okPct = total > 0 ? (ok / total) * 100 : 0;
+    const rejeitadosPct = total > 0 ? (rejeitados / total) * 100 : 0;
+    
+    return {
+        total,
+        percentages: { pendente: pendentePct, ok: okPct, rejeitados: rejeitadosPct }
+    };
+  }, [recentOrders]);
+
   const toggleOrder = (id: string) => {
     if (selectedOrders.includes(id)) {
       setSelectedOrders(selectedOrders.filter((orderId) => orderId !== id));
@@ -157,6 +179,11 @@ export default function DashboardSeller() {
       setSelectedOrders(filteredOrders.map((o) => o.id));
     }
   };
+
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="space-y-6">
@@ -258,22 +285,32 @@ export default function DashboardSeller() {
           </div>
           <div className="h-64 flex items-end justify-between space-x-2 px-2 pb-2 border-b border-gray-100">
              {/* Barras simuladas com CSS */}
-             {[40, 65, 45, 80, 55, 90].map((h, i) => (
+             {faturamentoData.length > 0 ? faturamentoData.map((data, i) => {
+                const maxVal = Math.max(...faturamentoData.map(d => d.total), 1);
+                const height = (data.total / maxVal) * 100;
+                return (
                 <div key={i} className="w-full bg-blue-50 rounded-t-md relative group h-full flex items-end">
                     <div 
                         className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-md transition-all duration-500 hover:from-blue-700 hover:to-blue-500 relative" 
-                        style={{ height: `${h}%` }}
+                        style={{ height: `${height}%` }}
                     >
                         {/* Tooltip */}
-                        <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded shadow-lg transition-opacity whitespace-nowrap z-10">
-                            R$ {h * 100},00
+                        <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded shadow-lg transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                            {data.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </div>
                     </div>
                 </div>
-             ))}
+             )}) : (
+                 <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Sem dados de faturamento</div>
+             )}
           </div>
           <div className="flex justify-between mt-3 text-xs font-medium text-gray-400 uppercase tracking-wider">
-              <span>Ago</span><span>Set</span><span>Out</span><span>Nov</span><span>Dez</span><span>Jan</span>
+              {faturamentoData.map((data, i) => {
+                  const [year, month] = data.mes.split('-');
+                  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+                  const monthName = date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+                  return <span key={i} className="w-full text-center">{monthName}</span>
+              })}
           </div>
         </div>
 
@@ -288,19 +325,24 @@ export default function DashboardSeller() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-8 h-64">
              {/* Representação visual de Pizza com CSS Conic Gradient */}
              <div className="relative w-48 h-48 rounded-full shadow-inner" style={{
-                 background: 'conic-gradient(#EAB308 0% 60%, #22C55E 60% 95%, #EF4444 95% 100%)'
+                 background: `conic-gradient(
+                    #EAB308 0% ${chartData.percentages.pendente}%, 
+                    #22C55E ${chartData.percentages.pendente}% ${chartData.percentages.pendente + chartData.percentages.ok}%, 
+                    #EF4444 ${chartData.percentages.pendente + chartData.percentages.ok}% ${chartData.percentages.pendente + chartData.percentages.ok + chartData.percentages.rejeitados}%,
+                    #F3F4F6 ${chartData.percentages.pendente + chartData.percentages.ok + chartData.percentages.rejeitados}% 100%
+                 )`
              }}>
                  <div className="absolute inset-8 bg-white rounded-full flex items-center justify-center flex-col shadow-sm">
-                     <span className="text-3xl font-bold text-gray-800">1.2k</span>
+                     <span className="text-3xl font-bold text-gray-800">{chartData.total}</span>
                      <span className="text-xs text-gray-500 font-medium uppercase">Total</span>
                  </div>
              </div>
              
              {/* Legenda */}
              <div className="flex flex-col gap-3 text-sm">
-                  <div className="flex items-center"><span className="w-3 h-3 bg-yellow-500 rounded-full mr-2 shadow-sm"></span> <span className="text-gray-600">Pendente (60%)</span></div>
-                  <div className="flex items-center"><span className="w-3 h-3 bg-green-500 rounded-full mr-2 shadow-sm"></span> <span className="text-gray-600">Ok (35%)</span></div>
-                  <div className="flex items-center"><span className="w-3 h-3 bg-red-500 rounded-full mr-2 shadow-sm"></span> <span className="text-gray-600">Rejeitados (5%)</span></div>
+                  <div className="flex items-center"><span className="w-3 h-3 bg-yellow-500 rounded-full mr-2 shadow-sm"></span> <span className="text-gray-600">Pendente ({chartData.percentages.pendente.toFixed(1)}%)</span></div>
+                  <div className="flex items-center"><span className="w-3 h-3 bg-green-500 rounded-full mr-2 shadow-sm"></span> <span className="text-gray-600">Ok ({chartData.percentages.ok.toFixed(1)}%)</span></div>
+                  <div className="flex items-center"><span className="w-3 h-3 bg-red-500 rounded-full mr-2 shadow-sm"></span> <span className="text-gray-600">Rejeitados ({chartData.percentages.rejeitados.toFixed(1)}%)</span></div>
              </div>
           </div>
         </div>
@@ -336,10 +378,10 @@ export default function DashboardSeller() {
                     {loading && (
                         <tr><td colSpan={7} className="text-center p-8 text-gray-500">Carregando pedidos...</td></tr>
                     )}
-                    {!loading && filteredOrders.length === 0 && (
+                    {!loading && paginatedOrders.length === 0 && (
                         <tr><td colSpan={7} className="text-center p-8 text-gray-500">Nenhum pedido recente encontrado.</td></tr>
                     )}
-                    {!loading && filteredOrders.map((order) => (
+                    {!loading && paginatedOrders.map((order) => (
                         <tr key={order.id} className="hover:bg-blue-50/30 transition-colors">
                             <td className="px-6 py-4 border-b border-gray-100">
                                 <input 
@@ -375,7 +417,7 @@ export default function DashboardSeller() {
         <div className="p-4 border-t border-gray-100">
             <Pagination 
                 currentPage={currentPage} 
-                totalPages={Math.ceil(totalItems / itemsPerPage)} 
+                totalPages={Math.ceil(filteredOrders.length / itemsPerPage)} 
                 onPageChange={setCurrentPage} 
             />
         </div>

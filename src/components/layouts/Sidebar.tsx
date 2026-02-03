@@ -38,7 +38,8 @@ export default function Sidebar({ role = 'admin' }: SidebarProps) {
   return (
     <aside className="w-64 h-screen fixed bg-white shadow-md flex flex-col z-20">
       <div className="p-6 border-b">
-        <h2 className="text-xl font-bold text-center text-gray-800">Cia das Compras</h2>
+        {/* <h2 className="text-xl font-bold text-center text-gray-800">Cia das Compras</h2> */}
+        <img src="../assets/images/LogociaSite.png" alt="Cia das Compras" className="w-full h-auto" />
       </div>
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {role === 'admin' && (

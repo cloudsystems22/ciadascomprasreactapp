@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -8,6 +8,7 @@ import {
   faEdit,
   faTrashAlt,
 } from "@fortawesome/free-solid-svg-icons";
+import { getPedido, getItensPedido } from "../../api/pedidos";
 
 // Tipos para os dados do pedido (Mock)
 interface OrderItem {
@@ -59,47 +60,82 @@ export default function OrderDetails() {
   const { user } = useAuth();
   const role = user?.role;
 
-  // Mock de dados (simulando o retorno do banco de dados)
-  const [order, setOrder] = useState<Order>({
-    id: id || "12345",
-    date: "2026-02-02T14:30:00",
-    status: 'pending',
-    buyer: {
-      name: "Auto Peças Silva",
-      cnpj: "12.345.678/0001-90",
-      contact: "João Silva",
-      email: "joao@autpecassilva.com.br",
-      phone: "(11) 99999-9999",
-      address: "Rua das Flores, 123",
-      city: "São Paulo",
-      state: "SP"
-    },
-    seller: {
-      name: "Distribuidora Peças Top",
-      cnpj: "98.765.432/0001-10",
-      contact: "Maria Souza",
-      email: "vendas@pecastop.com.br",
-      phone: "(19) 3333-3333",
-      address: "Av. Industrial, 456",
-      city: "Campinas",
-      state: "SP"
-    },
-    items: [
-      { id: "1", product: "Amortecedor Dianteiro", brand: "Cofap", quantity: 2, unitPrice: 150.00, subtotal: 300.00 },
-      { id: "2", product: "Pastilha de Freio", brand: "Bosch", quantity: 1, unitPrice: 80.00, subtotal: 80.00 },
-    ],
-    total: 380.00,
-    observations: "Entrega urgente, se possível enviar até sexta-feira.",
-    payment: {
-        status: 'pending',
-        method: 'Cartão de Crédito',
-        installments: 3,
-    }
-  });
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrderData = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const [pedidoData, itensData] = await Promise.all([
+          getPedido(id),
+          getItensPedido(id)
+        ]);
+
+        const mapApiStatus = (status: number): Order['status'] => {
+            if (status === 0) return 'pending';
+            if (status === 1) return 'confirmed';
+            if (status === -1) return 'rejected';
+            return 'pending';
+        };
+
+        setOrder({
+          id: pedidoData.id_pedido_ped,
+          date: pedidoData.dt_data_ped,
+          status: mapApiStatus(pedidoData.fl_status_ped),
+          buyer: {
+            name: `Lojista #${pedidoData.id_lojista_cli}`, // Placeholder pois a API não retorna nome
+            cnpj: "Não informado",
+            contact: "",
+            email: "",
+            phone: "",
+            address: "",
+            city: "",
+            state: ""
+          },
+          seller: {
+            name: `Fornecedor #${pedidoData.id_fornecedor_cli}`, // Placeholder
+            cnpj: "Não informado",
+            contact: "",
+            email: "",
+            phone: "",
+            address: "",
+            city: "",
+            state: ""
+          },
+          items: (Array.isArray(itensData) ? itensData : []).map(item => ({
+            id: item.ID_PECA_PEC, // Usando ID da peça como ID do item
+            product: item.ID_PECA_PEC,
+            brand: item.MARCA,
+            quantity: item.NM_QUANTIDADE_PIP,
+            unitPrice: item.VL_VALOR,
+            subtotal: item.NM_QUANTIDADE_PIP * item.VL_VALOR
+          })),
+          total: pedidoData.vl_valor_ped,
+          observations: pedidoData.tx_observacoes_ped || "",
+          payment: {
+              status: 'pending',
+              method: 'A definir',
+              installments: 1
+          }
+        });
+      } catch (error) {
+        console.error("Erro ao buscar detalhes do pedido:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrderData();
+  }, [id]);
 
   const handleStatusChange = (newStatus: Order['status']) => {
     // Aqui entraria a lógica de chamada à API para atualizar o status
-    setOrder({ ...order, status: newStatus });
+    if (order) {
+        setOrder({ ...order, status: newStatus });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -111,6 +147,14 @@ export default function OrderDetails() {
       default: return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold">Pendente</span>;
     }
   };
+
+  if (loading) {
+      return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  }
+
+  if (!order) {
+      return <div className="text-center p-10 text-gray-500">Pedido não encontrado.</div>;
+  }
 
   return (
     <div className="space-y-6">
