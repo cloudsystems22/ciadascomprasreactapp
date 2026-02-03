@@ -6,6 +6,7 @@ export interface PedidoParams {
   id_fornecedor_cli: number;
   status_ped?: number;
   sort_by?: string;
+  dta_ped?: string;
   sort_order?: string;
 }
 
@@ -35,11 +36,11 @@ export interface PedidoResponse {
 }
 
 export const getPedidos = async (params: PedidoParams): Promise<PedidoResponse> => {
-  const { page = 1, limit = 10, id_fornecedor_cli, status_ped, sort_by = 'dt_data_ped', sort_order = 'DESC' } = params;
+  const { page = 1, limit = 10, id_fornecedor_cli, dta_ped = 'dt_ini', status_ped } = params;
   const offset = (page - 1) * limit;
 
   try {
-    const queryParams: any = { id_fornecedor_cli, limit, offset, sort_by, sort_order };
+    const queryParams: any = { id_fornecedor_cli, dta_ped, limit, offset };
     
     if (status_ped !== undefined) {
       queryParams.status_ped = status_ped;

@@ -37,9 +37,9 @@ interface RecentOrder {
 
 const mapStatus = (status: number): OrderStatus => {
     switch (status) {
-        case 1: return 'Pendente';
-        case 2: return 'Ok'; // Assumindo que 2 = Ok
-        case 3: return 'Rejeitados'; // Assumindo que 3 = Rejeitados
+        case -1: return 'Rejeitados';
+        case 0: return 'Pendente';
+        case 1: return 'Ok';
         default: return 'Outro';
     }
 };
@@ -56,7 +56,7 @@ export default function DashboardSeller() {
   
   // Estados para paginação e filtro
   const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>("1");
+  const [statusFilter, setStatusFilter] = useState<string>("0"); // 0 é Pendente
   const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 30;
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,11 +80,15 @@ export default function DashboardSeller() {
             params.status_ped = parseInt(statusFilter);
         }
 
+        if (selectedDate) {
+            params.dt_data_ped = selectedDate;
+        }
+
         const pedidosData = await getPedidos(params);
 
-        const pendenteCount = pedidosData.items.filter(p => p.fl_status_ped === 1).length;
-        const okCount = pedidosData.items.filter(p => p.fl_status_ped === 2).length; // Assumindo status
-        const rejeitadosCount = pedidosData.items.filter(p => p.fl_status_ped === 3).length; // Assumindo status
+        const pendenteCount = pedidosData.items.filter(p => p.fl_status_ped === 0).length;
+        const okCount = pedidosData.items.filter(p => p.fl_status_ped === 1).length;
+        const rejeitadosCount = pedidosData.items.filter(p => p.fl_status_ped === -1).length;
 
         setStats([
           { label: "Total de Pedidos", value: pedidosData.totalCount.toString(), icon: faShoppingBag, color: "bg-blue-500" },
@@ -110,7 +114,7 @@ export default function DashboardSeller() {
       }
     };
     fetchDashboardData();
-  }, [currentPage, statusFilter, sortConfig]);
+  }, [currentPage, statusFilter, sortConfig, selectedDate]);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -171,7 +175,7 @@ export default function DashboardSeller() {
                 <input 
                     type="date" 
                     value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
+                    onChange={(e) => { setSelectedDate(e.target.value); setCurrentPage(1); }}
                     className="text-sm font-semibold text-gray-800 outline-none bg-transparent w-full sm:w-auto"
                 />
             </div>
@@ -185,9 +189,9 @@ export default function DashboardSeller() {
                     className="text-sm font-semibold text-gray-800 outline-none bg-transparent w-full sm:w-auto cursor-pointer"
                 >
                     <option value="">Todos</option>
-                    <option value="1">Pendente</option>
-                    <option value="2">Ok</option>
-                    <option value="3">Rejeitados</option>
+                    <option value="0">Pendente</option>
+                    <option value="1">Ok</option>
+                    <option value="-1">Rejeitados</option>
                 </select>
             </div>
 
