@@ -18,6 +18,7 @@ import {
   faEnvelope,
   faAsterisk,
 } from "@fortawesome/free-solid-svg-icons";
+import logoImg from '../../assets/LogociaSite.png';
 
 type UserRole = 'admin' | 'buyer' | 'seller';
 
@@ -35,11 +36,20 @@ function SidebarLink({ icon, label, href }: { icon: any, label: string, href: st
 }
 
 export default function Sidebar({ role = 'admin' }: SidebarProps) {
+  const getHomeLink = () => {
+    switch (role) {
+      case 'seller': return '/seller';
+      case 'buyer': return '/buyer';
+      default: return '/admin';
+    }
+  };
+
   return (
     <aside className="w-64 h-screen fixed bg-white shadow-md flex flex-col z-20">
-      <div className="p-6 border-b">
-        {/* <h2 className="text-xl font-bold text-center text-gray-800">Cia das Compras</h2> */}
-        <img src="../assets/images/LogociaSite.png" alt="Cia das Compras" className="w-full h-auto" />
+      <div className="p-4 border-b flex justify-center">
+        <Link to={getHomeLink()}>
+          <img src={logoImg} alt="Cia das Compras" className="w-32 h-auto opacity-90 hover:opacity-100 transition-opacity" />
+        </Link>
       </div>
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {role === 'admin' && (

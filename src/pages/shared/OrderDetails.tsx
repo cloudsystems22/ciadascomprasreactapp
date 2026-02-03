@@ -7,8 +7,12 @@ import {
   faArrowLeft,
   faEdit,
   faTrashAlt,
+  faEye,
 } from "@fortawesome/free-solid-svg-icons";
 import { getPedido, getItensPedido } from "../../api/pedidos";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import logoImg from '../../assets/LogociaSite.png';
 
 // Tipos para os dados do pedido (Mock)
 interface OrderItem {
@@ -138,6 +142,92 @@ export default function OrderDetails() {
     }
   };
 
+  const generatePDF = (action: 'save' | 'view' = 'save') => {
+    if (!order) return;
+
+    const doc = new jsPDF();
+    
+    const img = new Image();
+    img.src = logoImg;
+
+    img.onload = () => {
+        // Logo
+        doc.addImage(img, 'PNG', 14, 10, 40, 12);
+        
+        // Título e Dados Básicos
+        doc.setFontSize(18);
+        doc.text(`Pedido #${order.id}`, 14, 30);
+        
+        doc.setFontSize(10);
+        doc.text(`Data: ${new Date(order.date).toLocaleString()}`, 14, 36);
+        doc.text(`Status: ${order.status.toUpperCase()}`, 14, 41);
+
+        doc.setLineWidth(0.5);
+        doc.line(14, 45, 196, 45);
+
+        // Dados do Comprador
+        doc.setFontSize(12);
+        doc.text("Comprador", 14, 52);
+        doc.setFontSize(9);
+        const buyerInfo = [
+            order.buyer.name,
+            `CNPJ: ${order.buyer.cnpj}`,
+            `Email: ${order.buyer.email}`,
+            `Tel: ${order.buyer.phone}`,
+            `${order.buyer.address}`,
+            `${order.buyer.city} - ${order.buyer.state}`
+        ];
+        doc.text(buyerInfo, 14, 58);
+
+        // Dados do Fornecedor
+        doc.setFontSize(12);
+        doc.text("Fornecedor", 110, 52);
+        doc.setFontSize(9);
+        const sellerInfo = [
+            order.seller.name,
+            `CNPJ: ${order.seller.cnpj}`,
+            `Email: ${order.seller.email}`,
+            `Tel: ${order.seller.phone}`,
+            `${order.seller.address}`,
+            `${order.seller.city} - ${order.seller.state}`
+        ];
+        doc.text(sellerInfo, 110, 58);
+
+        // Tabela de Itens
+        const tableColumn = ["Peça", "Marca", "Qtd", "Valor Unit.", "Subtotal"];
+        const tableRows = order.items.map(item => [
+            item.product,
+            item.brand,
+            item.quantity,
+            `R$ ${item.unitPrice.toFixed(2)}`,
+            `R$ ${item.subtotal.toFixed(2)}`
+        ]);
+
+        autoTable(doc, {
+            startY: 85,
+            head: [tableColumn],
+            body: tableRows,
+            foot: [['', '', '', 'Total:', `R$ ${order.total.toFixed(2)}`]],
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185] },
+            styles: { fontSize: 9 }
+        });
+
+        // Observações
+        const finalY = (doc as any).lastAutoTable.finalY || 85;
+        doc.setFontSize(10);
+        doc.text("Observações:", 14, finalY + 10);
+        doc.setFontSize(9);
+        doc.text(order.observations || "Nenhuma observação.", 14, finalY + 15);
+
+        if (action === 'view') {
+            window.open(doc.output('bloburl'), '_blank');
+        } else {
+            doc.save(`Pedido_${order.id}.pdf`);
+        }
+    };
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'confirmed': return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">Confirmado</span>;
@@ -175,8 +265,11 @@ export default function OrderDetails() {
           </nav>
         </div>
         <div className="flex gap-2">
-            <button className="btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center" onClick={() => window.print()}>
-                <FontAwesomeIcon icon={faPrint} className="mr-2" /> Imprimir
+            <button className="btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center" onClick={() => generatePDF('view')}>
+                <FontAwesomeIcon icon={faEye} className="mr-2" /> Visualizar
+            </button>
+            <button className="btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center" onClick={() => generatePDF('save')}>
+                <FontAwesomeIcon icon={faPrint} className="mr-2" /> Baixar PDF
             </button>
             <button className="btn bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center" onClick={() => navigate(-1)}>
                 <FontAwesomeIcon icon={faArrowLeft} className="mr-2" /> Voltar
