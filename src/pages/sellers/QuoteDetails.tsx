@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHome, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-
-// Placeholder for quote detail data
-interface QuoteDetail {
-    id: number;
-    comprador: string;
-    // TODO: Adicionar outros campos detalhados da cotação
-}
+import { faHome, faArrowLeft, faFlag, faCheckCircle, faCalendarAlt, faMapMarkerAlt, faEnvelope, faBolt, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { getCotacoesCards, getCotacaoItems, type CotacaoCard, type CotacaoItem } from '../../api/cotacoes';
 
 const QuoteDetails: React.FC = () => {
     const [searchParams] = useSearchParams();
     const [quoteIds, setQuoteIds] = useState<number[]>([]);
-    const [quoteDetails, setQuoteDetails] = useState<QuoteDetail[]>([]);
+    const [quoteDetails, setQuoteDetails] = useState<CotacaoCard[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Estado para o Modal de Resposta Rápida
+    const [quickReplyQuote, setQuickReplyQuote] = useState<CotacaoCard | null>(null);
+    const [quoteItems, setQuoteItems] = useState<CotacaoItem[]>([]);
+    const [loadingItems, setLoadingItems] = useState(false);
+
+    // ID do fornecedor fixo conforme solicitado
+    const ID_FORNECEDOR = 126;
 
     useEffect(() => {
         const idsParam = searchParams.get('ids');
@@ -22,23 +24,51 @@ const QuoteDetails: React.FC = () => {
             const ids = idsParam.split(',').map(id => parseInt(id, 10));
             setQuoteIds(ids);
 
-            // TODO: Substituir pela chamada real da API para buscar os detalhes dos IDs
-            console.log("Buscando detalhes para os IDs:", ids);
-            
-            // Simulando uma chamada de API
-            setTimeout(() => {
-                const mockDetails: QuoteDetail[] = ids.map(id => ({
-                    id: id,
-                    comprador: `Comprador Exemplo para Cotação #${id}`,
-                    // ... outros dados mockados
-                }));
-                setQuoteDetails(mockDetails);
-                setLoading(false);
-            }, 500);
+            const fetchDetails = async () => {
+                setLoading(true);
+                try {
+                    // Busca os detalhes das cotações usando a API real
+                    // Passando ids como parâmetro para filtrar
+                    const response: any = await getCotacoesCards(ID_FORNECEDOR, { ids: idsParam } as any);
+                    
+                    // Verifica se o retorno está em 'data' (conforme exemplo JSON) ou 'items' (padrão do Quotes.tsx)
+                    const data = response.data || response.items || [];
+                    setQuoteDetails(data);
+                } catch (error) {
+                    console.error("Erro ao buscar detalhes das cotações", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            fetchDetails();
         } else {
             setLoading(false);
         }
     }, [searchParams]);
+
+    const handleQuickReply = async (quote: CotacaoCard) => {
+        setQuickReplyQuote(quote);
+        setLoadingItems(true);
+        setQuoteItems([]); 
+        
+        try {
+            const items = await getCotacaoItems(quote.id_pacotinho);
+            // Mock de dados caso a API retorne vazio (para demonstração)
+            if (items.length === 0) {
+                 setQuoteItems([
+                     { id_item: 1, descricao: "Item Exemplo 1 (Mock)", quantidade: 10, unidade: "UN" },
+                     { id_item: 2, descricao: "Item Exemplo 2 (Mock)", quantidade: 5, unidade: "CX" }
+                 ]);
+            } else {
+                 setQuoteItems(items);
+            }
+        } catch (error) {
+            console.error("Erro ao carregar itens", error);
+        } finally {
+            setLoadingItems(false);
+        }
+    };
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen font-sans">
@@ -68,22 +98,146 @@ const QuoteDetails: React.FC = () => {
                     </Link>
                 </div>
 
-                {loading && <p className="text-center text-gray-500 py-8">Carregando detalhes...</p>}
-
-                {!loading && quoteDetails.length === 0 && (
-                    <p className="text-center text-red-500 py-8">Nenhum ID de cotação foi fornecido ou os detalhes não puderam ser carregados.</p>
+                {loading && (
+                    <div className="flex justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
                 )}
 
-                {!loading && <div className="space-y-4">
-                    {quoteDetails.map(detail => (
-                        <div key={detail.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                            <h3 className="font-bold text-blue-600">Cotação ID: {detail.id}</h3>
-                            <p className="text-gray-700 mt-1">Comprador: {detail.comprador}</p>
-                            {/* TODO: Renderizar outros detalhes da cotação aqui */}
-                        </div>
-                    ))}
-                </div>}
+                {!loading && quoteDetails.length === 0 && (
+                    <p className="text-center text-red-500 py-8">Nenhuma cotação encontrada para os IDs fornecidos.</p>
+                )}
+
+                {!loading && (
+                    <div className="space-y-4">
+                        {quoteDetails.map(detail => (
+                            <div key={detail.id_pacotinho} className={`p-5 border rounded-lg transition-colors ${detail.respondido_por_mim ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
+                                <div className="flex flex-col md:flex-row justify-between gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <h3 className="font-bold text-lg text-blue-600">#{detail.id_pacotinho}</h3>
+                                            {detail.flag && (
+                                                <span className="text-red-500" title="Marca de interesse">
+                                                    <FontAwesomeIcon icon={faFlag} />
+                                                </span>
+                                            )}
+                                            {detail.respondido_por_mim && (
+                                                <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full border border-green-200 flex items-center">
+                                                    <FontAwesomeIcon icon={faCheckCircle} className="mr-1" /> Respondido
+                                                </span>
+                                            )}
+                                        </div>
+                                        
+                                        <p className="text-gray-800 font-medium mb-1">{detail.Comprador}</p>
+                                        
+                                        <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
+                                            <div className="flex items-center">
+                                                <FontAwesomeIcon icon={faCalendarAlt} className="mr-2 text-gray-400" />
+                                                {detail.Entrada}
+                                            </div>
+                                            <div className="flex items-center">
+                                                <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-gray-400" />
+                                                {detail.Localização}
+                                            </div>
+                                        </div>
+
+                                        {detail.Resumo && (
+                                            <div className="mt-3 p-2 bg-gray-50 rounded text-sm text-gray-700 border border-gray-100">
+                                                <span className="font-semibold text-gray-500 text-xs uppercase block mb-1">Resumo</span>
+                                                {detail.Resumo}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col items-end justify-between min-w-[100px]">
+                                        <div className={`flex items-center px-3 py-1 rounded-full text-sm font-medium ${detail.Resp > 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                            <span className="mr-2">{detail.Resp}</span>
+                                            <FontAwesomeIcon icon={faEnvelope} />
+                                        </div>
+                                        <button 
+                                            onClick={() => handleQuickReply(detail)}
+                                            className="mt-2 text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-full hover:bg-blue-50"
+                                            title="Responder Rápido"
+                                        >
+                                            <FontAwesomeIcon icon={faBolt} size="lg" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
+
+            {/* Modal de Resposta Rápida */}
+            {quickReplyQuote && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                  <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                    <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800">Responder Cotação #{quickReplyQuote.id_pacotinho}</h3>
+                        <p className="text-sm text-gray-500 mt-1">{quickReplyQuote.Comprador}</p>
+                      </div>
+                      <button 
+                        onClick={() => setQuickReplyQuote(null)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        <FontAwesomeIcon icon={faTimes} className="text-xl" />
+                      </button>
+                    </div>
+                    
+                    <div className="p-6 overflow-y-auto flex-1">
+                      {loadingItems ? (
+                        <div className="flex justify-center py-10">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        </div>
+                      ) : (
+                        <table className="w-full text-left text-sm text-gray-600">
+                          <thead className="bg-gray-50 text-gray-700 font-semibold uppercase text-xs">
+                            <tr>
+                              <th className="px-4 py-3 rounded-l-lg">Item</th>
+                              <th className="px-4 py-3">Qtd.</th>
+                              <th className="px-4 py-3">Un.</th>
+                              <th className="px-4 py-3 rounded-r-lg text-right">Preço (R$)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {quoteItems.map((item, idx) => (
+                              <tr key={item.id_item || idx}>
+                                <td className="px-4 py-3 font-medium text-gray-800">{item.descricao}</td>
+                                <td className="px-4 py-3">{item.quantidade}</td>
+                                <td className="px-4 py-3">{item.unidade}</td>
+                                <td className="px-4 py-3 text-right">
+                                  <input type="number" className="w-24 p-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0,00" />
+                                </td>
+                              </tr>
+                            ))}
+                            {quoteItems.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Nenhum item encontrado.</td></tr>}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                    
+                    <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+                      <button 
+                        onClick={() => setQuickReplyQuote(null)}
+                        className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                        onClick={() => {
+                            alert("Funcionalidade de enviar resposta será implementada em breve!");
+                            setQuickReplyQuote(null);
+                        }}
+                      >
+                        Enviar Resposta
+                      </button>
+                    </div>
+                  </div>
+                </div>
+            )}
         </div>
     );
 };
