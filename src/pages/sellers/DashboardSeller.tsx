@@ -67,7 +67,7 @@ export default function DashboardSeller() {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const sellerId = 5097; 
+        const sellerId = 126; //5097; 
         
         const params: any = { 
             id_fornecedor_cli: sellerId, 
