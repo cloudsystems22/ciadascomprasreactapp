@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getCotacoesCards, getCotacaoItems, type CotacaoCard, type CotacaoItem } from '../../api/cotacoes';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHome, faSearch, faFilter, faSort, faEnvelope, faFlag, faInfoCircle, faCheck, faTimes, faUpload, faEye, faMapMarkerAlt, faCalendarAlt, faBolt, faExclamationCircle } from "@fortawesome/free-solid-svg-icons";
+import { faHome, faSearch, faFilter, faSort, faEnvelope, faFlag, faInfoCircle, faCheck, faTimes, faUpload, faEye, faMapMarkerAlt, faCalendarAlt, faBolt, faExclamationCircle, faEdit } from "@fortawesome/free-solid-svg-icons";
 
 // Helper para verificar se é "Novo" (menos de 30 dias)
 // Formato esperado: "04/02/2026 12:24:21"
@@ -25,6 +25,7 @@ const Quotes: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedCotacoes, setSelectedCotacoes] = useState<number[]>([]);
   const [page, setPage] = useState(1);
+  const [drafts, setDrafts] = useState<Set<number>>(new Set());
   
   // Estado para o Modal de Resposta Rápida
   const [quickReplyQuote, setQuickReplyQuote] = useState<CotacaoCard | null>(null);
@@ -71,6 +72,46 @@ const Quotes: React.FC = () => {
   useEffect(() => {
     setPage(1);
   }, [searchId, sortBy, sortOrder, visualizacao, statusFilter]);
+
+  // Verifica rascunhos salvos no localStorage e limpa antigos (> 7 dias)
+  useEffect(() => {
+    const checkDrafts = () => {
+        const foundDrafts = new Set<number>();
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const keysToCheck: string[] = [];
+
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('quote_draft_')) {
+                keysToCheck.push(key);
+            }
+        }
+
+        keysToCheck.forEach(key => {
+            try {
+                const draftStr = localStorage.getItem(key);
+                if (draftStr) {
+                    const draft = JSON.parse(draftStr);
+                    if (draft.updatedAt && new Date(draft.updatedAt) < sevenDaysAgo) {
+                        localStorage.removeItem(key);
+                        return; // Rascunho expirado removido, não adiciona à lista
+                    }
+                }
+            } catch (e) {
+                console.warn("Erro ao verificar rascunho:", key, e);
+            }
+
+            const id = parseInt(key.replace('quote_draft_', ''), 10);
+            if (!isNaN(id)) foundDrafts.add(id);
+        });
+
+        setDrafts(foundDrafts);
+    };
+    checkDrafts();
+    window.addEventListener('focus', checkDrafts); // Atualiza ao focar na janela
+    return () => window.removeEventListener('focus', checkDrafts);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -342,6 +383,7 @@ const Quotes: React.FC = () => {
                     const badgeClass = item.Resp > 0 
                       ? "bg-green-100 text-green-800 border border-green-200" // Verde se tiver respostas
                       : "bg-yellow-100 text-yellow-800 border border-yellow-200"; // Amarelo se 0 respostas
+                    const hasDraft = drafts.has(item.id_pacotinho);
 
                     return (
                       <tr key={item.id_pacotinho} className={`transition-colors ${rowClass}`}>
@@ -364,11 +406,18 @@ const Quotes: React.FC = () => {
                           {item.Comprador}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <div 
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
-                            title={`${item.Resp} respostas`}
-                          >
-                            {item.Resp} <FontAwesomeIcon icon={faEnvelope} className="ml-1" />
+                          <div className="flex flex-col items-center gap-1">
+                            <div 
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
+                              title={`${item.Resp} respostas`}
+                            >
+                              {item.Resp} <FontAwesomeIcon icon={faEnvelope} className="ml-1" />
+                            </div>
+                            {hasDraft && !item.respondido_por_mim && (
+                              <span className="text-xs text-orange-600 font-semibold flex items-center bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200" title="Rascunho não enviado">
+                                <FontAwesomeIcon icon={faEdit} className="mr-1" /> Rascunho
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className={`px-6 py-4 ${textClass}`}>

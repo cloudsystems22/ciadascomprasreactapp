@@ -1,4 +1,5 @@
 import api from "./api";
+import { getFabricantes } from "./fabricantes";
 
 export interface CotacaoParams {
   page?: number;
@@ -107,23 +108,26 @@ export const getCotacaoItems = async (id_pacotinho: number): Promise<CotacaoItem
   }
 };
 
-export const getCotacaoDetail = async (id_pacotinho: number): Promise<CotacaoDetail> => {
-  // Mock de dados de detalhes que não estão no card
-  // Em produção, isso viria de um endpoint específico /pacotinhos/{id}
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        id_pacotinho,
-        comprador: "Comprador Exemplo Ltda",
-        cnpj: "12.345.678/0001-90",
-        logo: null, // null para usar imagem padrão
-        requisitos: "ATENÇÃO: Cotação para peças originais. Não aceitamos peças paralelas sem prévia autorização. Entrega em até 5 dias úteis.",
-        data_fim: "2026-02-15",
-        hora_fim: "18:00",
-        marcas_disponiveis: ["Chevrolet", "Bosch", "ACDelco", "Magneti Marelli", "Nakata", "Cofap", "Monroe", "TRW"]
-      });
-    }, 300);
-  });
+export const getCotacaoDetail = async (id_pacotinho: number, id_fornecedor: number): Promise<CotacaoDetail> => {
+  try {
+    const response = await api.get('/pacotinhos/detalhes', { params: { id: id_pacotinho, id_fornecedor } });
+    const data = response.data;
+
+    // Correção da URL da logo se for relativa
+    if (data.logo && !data.logo.startsWith('http')) {
+      data.logo = `https://www.ciadascompras.com.br/sys/${data.logo}`;
+    }
+
+    // Se não houver marcas disponíveis, busca do endpoint /fabricantes
+    if (!data.marcas_disponiveis || data.marcas_disponiveis.length === 0) {
+      data.marcas_disponiveis = await getFabricantes(id_fornecedor);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Erro ao buscar detalhes da cotação", error);
+    throw error;
+  }
 };
 
 export interface CotacaoCardResponse {
