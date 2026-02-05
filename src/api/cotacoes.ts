@@ -27,11 +27,25 @@ export interface CotacaoCard {
 }
 
 export interface CotacaoItem {
-  id_item: number;
-  descricao: string;
-  quantidade: number;
-  unidade: string;
-  observacao?: string;
+  ID_PACOTINHO_PCT: number;
+  ID_PECA_PEC: string;
+  NM_QUANTIDADE_PIP: number;
+  MARCA: string;
+  FL_STATUS: number;
+  // Campos opcionais para quando já houver resposta
+  VL_VALOR_PROPOSTO?: number;
+  OBS_PROPOSTA?: string;
+}
+
+export interface CotacaoDetail {
+  id_pacotinho: number;
+  comprador: string;
+  cnpj: string;
+  logo: string | null;
+  requisitos: string;
+  data_fim: string;
+  hora_fim: string;
+  marcas_disponiveis: string[];
 }
 
 export const getCotacoes = async (params: CotacaoParams = {}): Promise<CotacaoResponse> => {
@@ -81,9 +95,7 @@ export const getCotacoes = async (params: CotacaoParams = {}): Promise<CotacaoRe
 
 export const getCotacaoItems = async (id_pacotinho: number): Promise<CotacaoItem[]> => {
   try {
-    // Endpoint hipotético para buscar itens. Ajuste conforme a rota real da sua API.
-    // Se a API ainda não existir, isso retornará um erro 404 ou similar.
-    const response = await api.get('/pacotinhos/itens', { params: { id_pacotinho } });
+    const response = await api.get('/pctinhopecas', { params: { id_pacotinho } });
     
     if (Array.isArray(response.data)) {
       return response.data;
@@ -93,6 +105,25 @@ export const getCotacaoItems = async (id_pacotinho: number): Promise<CotacaoItem
     console.error(`Erro ao buscar itens da cotação ${id_pacotinho}`, error);
     return []; // Retorna array vazio em caso de erro para não quebrar a UI
   }
+};
+
+export const getCotacaoDetail = async (id_pacotinho: number): Promise<CotacaoDetail> => {
+  // Mock de dados de detalhes que não estão no card
+  // Em produção, isso viria de um endpoint específico /pacotinhos/{id}
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        id_pacotinho,
+        comprador: "Comprador Exemplo Ltda",
+        cnpj: "12.345.678/0001-90",
+        logo: null, // null para usar imagem padrão
+        requisitos: "ATENÇÃO: Cotação para peças originais. Não aceitamos peças paralelas sem prévia autorização. Entrega em até 5 dias úteis.",
+        data_fim: "2026-02-15",
+        hora_fim: "18:00",
+        marcas_disponiveis: ["Chevrolet", "Bosch", "ACDelco", "Magneti Marelli", "Nakata", "Cofap", "Monroe", "TRW"]
+      });
+    }, 300);
+  });
 };
 
 export interface CotacaoCardResponse {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHome, faArrowLeft, faFlag, faCheckCircle, faCalendarAlt, faMapMarkerAlt, faEnvelope, faBolt, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faHome, faArrowLeft, faFlag, faCheckCircle, faCalendarAlt, faMapMarkerAlt, faEnvelope, faBolt, faTimes, faExclamationCircle } from "@fortawesome/free-solid-svg-icons";
 import { getCotacoesCards, getCotacaoItems, type CotacaoCard, type CotacaoItem } from '../../api/cotacoes';
 
 const QuoteDetails: React.FC = () => {
@@ -14,6 +14,8 @@ const QuoteDetails: React.FC = () => {
     const [quickReplyQuote, setQuickReplyQuote] = useState<CotacaoCard | null>(null);
     const [quoteItems, setQuoteItems] = useState<CotacaoItem[]>([]);
     const [loadingItems, setLoadingItems] = useState(false);
+    const [prices, setPrices] = useState<Record<number, string>>({});
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     // ID do fornecedor fixo conforme solicitado
     const ID_FORNECEDOR = 126;
@@ -51,23 +53,34 @@ const QuoteDetails: React.FC = () => {
         setQuickReplyQuote(quote);
         setLoadingItems(true);
         setQuoteItems([]); 
+        setPrices({});
+        setValidationError(null);
         
         try {
             const items = await getCotacaoItems(quote.id_pacotinho);
-            // Mock de dados caso a API retorne vazio (para demonstração)
-            if (items.length === 0) {
-                 setQuoteItems([
-                     { id_item: 1, descricao: "Item Exemplo 1 (Mock)", quantidade: 10, unidade: "UN" },
-                     { id_item: 2, descricao: "Item Exemplo 2 (Mock)", quantidade: 5, unidade: "CX" }
-                 ]);
-            } else {
-                 setQuoteItems(items);
-            }
+            setQuoteItems(items);
         } catch (error) {
             console.error("Erro ao carregar itens", error);
         } finally {
             setLoadingItems(false);
         }
+    };
+
+    const handlePriceChange = (index: number, value: string) => {
+        setPrices(prev => ({ ...prev, [index]: value }));
+        if (validationError) setValidationError(null);
+    };
+
+    const handleSendReply = () => {
+        const hasValidPrice = Object.values(prices).some(p => p && parseFloat(p) > 0);
+        
+        if (!hasValidPrice) {
+            setValidationError("Por favor, preencha pelo menos um preço antes de enviar.");
+            return;
+        }
+
+        alert("Funcionalidade de enviar resposta será implementada em breve!");
+        setQuickReplyQuote(null);
     };
 
     return (
@@ -186,6 +199,13 @@ const QuoteDetails: React.FC = () => {
                       </button>
                     </div>
                     
+                    {validationError && (
+                        <div className="mx-6 mt-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+                            <FontAwesomeIcon icon={faExclamationCircle} className="mr-2" />
+                            <span>{validationError}</span>
+                        </div>
+                    )}
+
                     <div className="p-6 overflow-y-auto flex-1">
                       {loadingItems ? (
                         <div className="flex justify-center py-10">
@@ -197,22 +217,26 @@ const QuoteDetails: React.FC = () => {
                             <tr>
                               <th className="px-4 py-3 rounded-l-lg">Item</th>
                               <th className="px-4 py-3">Qtd.</th>
-                              <th className="px-4 py-3">Un.</th>
                               <th className="px-4 py-3 rounded-r-lg text-right">Preço (R$)</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
                             {quoteItems.map((item, idx) => (
-                              <tr key={item.id_item || idx}>
-                                <td className="px-4 py-3 font-medium text-gray-800">{item.descricao}</td>
-                                <td className="px-4 py-3">{item.quantidade}</td>
-                                <td className="px-4 py-3">{item.unidade}</td>
+                              <tr key={idx}>
+                                <td className="px-4 py-3 font-medium text-gray-800">{item.ID_PECA_PEC}</td>
+                                <td className="px-4 py-3">{item.NM_QUANTIDADE_PIP}</td>
                                 <td className="px-4 py-3 text-right">
-                                  <input type="number" className="w-24 p-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0,00" />
+                                  <input 
+                                    type="number" 
+                                    className="w-24 p-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-blue-500 outline-none" 
+                                    placeholder="0,00" 
+                                    value={prices[idx] || ''}
+                                    onChange={(e) => handlePriceChange(idx, e.target.value)}
+                                  />
                                 </td>
                               </tr>
                             ))}
-                            {quoteItems.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Nenhum item encontrado.</td></tr>}
+                            {quoteItems.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-500">Nenhum item encontrado.</td></tr>}
                           </tbody>
                         </table>
                       )}
@@ -227,10 +251,7 @@ const QuoteDetails: React.FC = () => {
                       </button>
                       <button 
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
-                        onClick={() => {
-                            alert("Funcionalidade de enviar resposta será implementada em breve!");
-                            setQuickReplyQuote(null);
-                        }}
+                        onClick={handleSendReply}
                       >
                         Enviar Resposta
                       </button>
