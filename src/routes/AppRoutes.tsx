@@ -13,6 +13,13 @@ import QuoteDetail from "../pages/sellers/QuoteDetail";
 import QuoteDetails from "../pages/sellers/QuoteDetails";
 import CotacoesPages from "../pages/admin/CotacoesPages";
 import OrderDetails from "../pages/shared/OrderDetails";
+import About from "../pages/public/About";
+import Contact from "../pages/public/Contact";
+import Pricing from "../pages/public/Pricing";
+import RegisterSeller from "../pages/public/RegisterSeller";
+import RegisterBuyer from "../pages/public/RegisterBuyer";
+import FAQ from "../pages/public/FAQ";
+import HowItWorks from "../pages/public/HowItWorks";
 
 export default function AppRoutes() {
   return (
@@ -21,6 +28,13 @@ export default function AppRoutes() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/sobre" element={<About />} />
+        <Route path="/contato" element={<Contact />} />
+        <Route path="/planos" element={<Pricing />} />
+        <Route path="/planos" element={<RegisterSeller />} />
+        <Route path="/cadastro" element={<RegisterBuyer />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/funcionalidades" element={<HowItWorks />} />
       </Route>
 
       {/* Privado */}
