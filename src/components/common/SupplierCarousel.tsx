@@ -14,7 +14,7 @@ export default function SupplierCarousel() {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const data = await getBannersForn();
+        const data = await getBannersForn('logo');
         setBanners(data);
       } catch (error) {
         console.error("Falha ao buscar banners de fornecedores", error);

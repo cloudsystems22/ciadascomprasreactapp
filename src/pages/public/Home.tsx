@@ -14,25 +14,25 @@ import SupplierCarousel from "../../components/common/SupplierCarousel";
 
 export default function Home() {
   const heroTextRef = useRef<HTMLDivElement>(null);
-  const isHeroTextVisible = useOnScreen(heroTextRef, "-100px");
+  const isHeroTextVisible = useOnScreen(heroTextRef, "-50px");
 
   const heroImageRef = useRef<HTMLDivElement>(null);
-  const isHeroImageVisible = useOnScreen(heroImageRef, "-100px");
+  const isHeroImageVisible = useOnScreen(heroImageRef, "-50px");
 
   const statsRef = useRef<HTMLDivElement>(null);
-  const areStatsVisible = useOnScreen(statsRef, "-100px");
+  const areStatsVisible = useOnScreen(statsRef, "-50px");
 
   const buyersRef = useRef<HTMLElement>(null);
-  const isBuyersVisible = useOnScreen(buyersRef, "-150px");
+  const isBuyersVisible = useOnScreen(buyersRef, "-100px");
 
   const sellersRef = useRef<HTMLElement>(null);
-  const isSellersVisible = useOnScreen(sellersRef, "-150px");
+  const isSellersVisible = useOnScreen(sellersRef, "-100px");
 
   const pricingRef = useRef<HTMLElement>(null);
-  const isPricingVisible = useOnScreen(pricingRef, "-150px");
+  const isPricingVisible = useOnScreen(pricingRef, "-100px");
 
   const ctaRef = useRef<HTMLElement>(null);
-  const isCtaVisible = useOnScreen(ctaRef, "-150px");
+  const isCtaVisible = useOnScreen(ctaRef, "-100px");
 
   return (
     <div className="overflow-x-hidden">

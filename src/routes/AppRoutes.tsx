@@ -21,6 +21,7 @@ import RegisterBuyer from "../pages/public/RegisterBuyer";
 import FAQ from "../pages/public/FAQ";
 import HowItWorks from "../pages/public/HowItWorks";
 import Suppliers from "../pages/public/Suppliers";
+import PrivacyPolicy from "../pages/public/PrivacyPolicy"
 
 export default function AppRoutes() {
   return (
@@ -36,6 +37,7 @@ export default function AppRoutes() {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/fornecedores" element={<Suppliers />} />
         <Route path="/funcionalidades" element={<HowItWorks />} />
+        <Route path="/privacidade" element={<PrivacyPolicy />} />
       </Route>
 
       {/* Privado */}

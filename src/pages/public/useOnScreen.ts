@@ -11,6 +11,9 @@ export function useOnScreen(ref: RefObject<HTMLElement | null>, rootMargin: stri
     const [isIntersecting, setIntersecting] = useState(false);
 
     useEffect(() => {
+        // Se já foi visualizado, não precisa observar novamente (animação única)
+        if (isIntersecting) return;
+
         const element = ref.current;
         if (!element) return;
 
@@ -18,7 +21,7 @@ export function useOnScreen(ref: RefObject<HTMLElement | null>, rootMargin: stri
             ([entry]) => {
                 if (entry.isIntersecting) {
                     setIntersecting(true);
-                    observer.unobserve(element);
+                    observer.disconnect(); // Desconecta completamente
                 }
             },
             { rootMargin }
@@ -26,8 +29,8 @@ export function useOnScreen(ref: RefObject<HTMLElement | null>, rootMargin: stri
 
         observer.observe(element);
 
-        return () => observer.unobserve(element);
-    }, [ref, rootMargin]);
+        return () => observer.disconnect();
+    }, [ref, rootMargin, isIntersecting]);
 
     return isIntersecting;
 }

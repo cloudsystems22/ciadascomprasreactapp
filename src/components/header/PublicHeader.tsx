@@ -15,7 +15,8 @@ import {
   faFileInvoiceDollar,
   faInfoCircle,
   faShieldAlt,
-  faAddressBook
+  faAddressBook,
+  faTags
 } from "@fortawesome/free-solid-svg-icons";
 import logoImg from '../../assets/LogociaSite.png';
 
@@ -76,7 +77,7 @@ export default function PublicHeader() {
         {/* DESKTOP MENU */}
         <div className="hidden lg:flex items-center gap-1 bg-white/50 rounded-full px-2 py-1 border border-white/40 shadow-inner">
           <NavLink to="/" icon={faHome} label="Home" />
-          <NavLink to="/cadastro" icon={faUserCircle} label="Cadastro" />
+          <NavLink to="/planos" icon={faTags} label="Planos e Preços" />
           <NavLink to="/funcionalidades" icon={faCog} label="Como funciona" />
           <NavLink to="/fornecedores" icon={faTruck} label="Principais fornecedores" />
           <NavLink to="/faq" icon={faQuestionCircle} label="Perguntas Frequentes" />
@@ -106,7 +107,7 @@ export default function PublicHeader() {
         <div className="lg:hidden absolute top-full left-0 w-full mt-2 px-4">
             <div className="bg-white/95 backdrop-blur-xl shadow-2xl border border-white/50 rounded-2xl py-6 px-6 flex flex-col gap-4 animate-fade-in-down">
                 <MobileLink to="/" label="Home" icon={faHome} onClick={() => setMobileMenuOpen(false)} />
-                <MobileLink to="/cadastro" label="Cadastro" icon={faUserCircle} onClick={() => setMobileMenuOpen(false)} />
+                <MobileLink to="/planos" label="Planos e Preços" icon={faTags} onClick={() => setMobileMenuOpen(false)} />
                 <MobileLink to="/funcionalidades" label="Como funciona" icon={faCog} onClick={() => setMobileMenuOpen(false)} />
                 <MobileLink to="/fornecedores" label="Principais fornecedores" icon={faTruck} onClick={() => setMobileMenuOpen(false)} />
                 <MobileLink to="/faq" label="Perguntas Frequentes" icon={faQuestionCircle} onClick={() => setMobileMenuOpen(false)} />
