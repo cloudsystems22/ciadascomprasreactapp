@@ -41,12 +41,23 @@ export interface CotacaoItem {
 export interface CotacaoDetail {
   id_pacotinho: number;
   comprador: string;
+  id_comprador: number; // Adicionado para identificar o destinatário das mensagens
   cnpj: string;
   logo: string | null;
   requisitos: string;
   data_fim: string;
   hora_fim: string;
   marcas_disponiveis: string[];
+}
+
+export interface MensagemCotacao {
+    id: number;
+    id_cotacao: number;
+    id_pedido: number | null;
+    id_remetente: number;
+    id_destinatario: number;
+    mensagem: string;
+    data: string;
 }
 
 export const getCotacoes = async (params: CotacaoParams = {}): Promise<CotacaoResponse> => {
@@ -176,4 +187,29 @@ export const getCotacoesCards = async (id_fornecedor: number, params: CotacaoPar
     console.error("Erro ao buscar cartões de cotações", error);
     throw error;
   }
+};
+
+// Métodos para Mensagens da Cotação
+export const getMensagensCotacao = async (id_cotacao: number, id_remetente: number, id_destinatario: number): Promise<MensagemCotacao[]> => {
+    try {
+        const response = await api.get('/mensagemcotacao', { params: { id_cotacao, id_remetente, id_destinatario } });
+        return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+        console.error("Erro ao buscar mensagens", error);
+        return [];
+    }
+};
+
+export const createMensagemCotacao = async (data: Omit<MensagemCotacao, 'id'>): Promise<MensagemCotacao> => {
+    const response = await api.post('/mensagemcotacao', data);
+    return response.data;
+};
+
+export const updateMensagemCotacao = async (id: number, data: Partial<MensagemCotacao>): Promise<MensagemCotacao> => {
+    const response = await api.put(`/mensagemcotacao`, data, { params: { id } });
+    return response.data;
+};
+
+export const deleteMensagemCotacao = async (id: number): Promise<void> => {
+    await api.delete(`/mensagemcotacao`, { params: { id } });
 };

@@ -2,14 +2,18 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
-    faHome, faArrowLeft, faPrint, faDownload, faInfoCircle, 
+    faHome, faArrowLeft, faPrint, faInfoCircle, 
     faCheck, faFlag, faCalendarAlt, faExclamationTriangle, 
-    faSave, faCreditCard, faTimes, faLightbulb, faEdit, faFileExcel, faFileCsv, faEye, faTrash
+    faSave, faCreditCard, faTimes, faLightbulb, faEdit, faFileExcel, faFileCsv, faEye, faTrash, faPaperPlane, faUser, faUserTie
 } from "@fortawesome/free-solid-svg-icons";
-import { getCotacaoItems, getCotacaoDetail, type CotacaoItem, type CotacaoDetail } from '../../api/cotacoes';
+import { 
+    getCotacaoItems, getCotacaoDetail, getMensagensCotacao, createMensagemCotacao, updateMensagemCotacao, deleteMensagemCotacao,
+    type CotacaoItem, type CotacaoDetail, type MensagemCotacao 
+} from '../../api/cotacoes';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../../assets/LogociaSite.png';
+import DOMPurify from 'dompurify';
 import * as XLSX from 'xlsx';
 
 // Componente Toast para notificações
@@ -52,6 +56,195 @@ const ConfirmModal: React.FC<{ message: string, onConfirm: () => void, onCancel:
     </div>
 );
 
+// Componente de Comentários
+const QuoteComments: React.FC<{ quoteId: number, senderId: number, recipientId: number }> = ({ quoteId, senderId, recipientId }) => {
+    const [messages, setMessages] = useState<MensagemCotacao[]>([]);
+    const [newMessage, setNewMessage] = useState("");
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editText, setEditText] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [newlyFetchedIds, setNewlyFetchedIds] = useState<Set<number>>(new Set());
+
+    const fetchMessages = async (isPolling = false) => {
+        if (!isPolling) setLoading(true);
+        try {
+            const data = await getMensagensCotacao(quoteId, senderId, recipientId);
+
+            if (isPolling && data.length > messages.length) {
+                const currentIds = new Set(messages.map(m => m.id));
+                const newIds = data.filter(m => !currentIds.has(m.id)).map(m => m.id);
+                if (newIds.length > 0) {
+                    setNewlyFetchedIds(new Set(newIds));
+                    // Remove o destaque após alguns segundos
+                    setTimeout(() => setNewlyFetchedIds(new Set()), 3000);
+                }
+            }
+            setMessages(data);
+        } catch (error) {
+            console.error("Erro ao carregar mensagens", error);
+        } finally {
+            if (!isPolling) setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMessages(); // Fetch inicial
+        const intervalId = setInterval(() => fetchMessages(true), 15000); // Polling a cada 15 segundos
+
+        return () => clearInterval(intervalId); // Limpa o intervalo ao desmontar
+    }, [quoteId, senderId, recipientId]);
+
+    const handleSendMessage = async () => {
+        if (!newMessage.trim()) return;
+        
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        try {
+            await createMensagemCotacao({
+                id_cotacao: quoteId,
+                id_pedido: null,
+                id_remetente: senderId,
+                id_destinatario: recipientId,
+                mensagem: newMessage,
+                data: today
+            });
+            setNewMessage("");
+            fetchMessages();
+        } catch (error) {
+            console.error("Erro ao enviar mensagem", error);
+            alert("Erro ao enviar mensagem.");
+        }
+    };
+
+    const handleDeleteMessage = async (id: number) => {
+        if (!window.confirm("Tem certeza que deseja excluir esta mensagem?")) return;
+        try {
+            await deleteMensagemCotacao(id);
+            fetchMessages();
+        } catch (error) {
+            console.error("Erro ao excluir mensagem", error);
+        }
+    };
+
+    const startEdit = (msg: MensagemCotacao) => {
+        setEditingId(msg.id);
+        setEditText(msg.mensagem);
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setEditText("");
+    };
+
+    const handleUpdateMessage = async (msg: MensagemCotacao) => {
+        if (!editText.trim()) return;
+        try {
+            await updateMensagemCotacao(msg.id, {
+                ...msg,
+                mensagem: editText
+            });
+            setEditingId(null);
+            fetchMessages();
+        } catch (error) {
+            console.error("Erro ao atualizar mensagem", error);
+        }
+    };
+
+    return (
+        <>
+            <div className="flex items-center justify-between mb-4">
+                <h3 id="comments-heading" className="text-lg font-bold text-gray-900">
+                    Comentários / Observações
+                </h3>
+                <button onClick={() => fetchMessages(false)} className="text-xs text-blue-600 hover:underline">Atualizar</button>
+            </div>
+            
+            <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto -mr-6 pr-6">
+                {loading && messages.length === 0 && <p className="text-sm text-gray-500 text-center py-4">Carregando...</p>}
+                {!loading && messages.length === 0 && <p className="text-sm text-gray-400 text-center italic py-4">Nenhuma observação registrada.</p>}
+                
+                {messages.map(msg => {
+                    const isSender = msg.id_remetente === senderId;
+                    const isNew = newlyFetchedIds.has(msg.id);
+                    return (
+                    <div key={msg.id} className={`py-5 flex gap-4 transition-colors duration-1000 ${isNew ? 'bg-blue-50' : ''}`}>
+                        <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isSender ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                            <FontAwesomeIcon icon={isSender ? faUserTie : faUser} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="font-semibold text-sm text-gray-800">
+                                    {isSender ? 'Você' : 'Comprador'}
+                                </span>
+                                <span className="text-xs text-gray-400">{new Date(msg.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'})}</span>
+                            </div>
+                        
+                        {editingId === msg.id ? (
+                            <div className="mt-2">
+                                <textarea 
+                                    className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                    rows={3}
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                />
+                                <div className="flex justify-end gap-2 mt-2">
+                                    <button onClick={cancelEdit} className="text-xs text-gray-500 hover:text-gray-700">Cancelar</button>
+                                    <button onClick={() => handleUpdateMessage(msg)} className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">Salvar</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div 
+                                className="text-sm text-gray-700 prose prose-sm max-w-none whitespace-pre-wrap"
+                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.mensagem) }}
+                            >
+                            </div>
+                        )}
+
+                        {isSender && editingId !== msg.id && (
+                            <div className="flex items-center gap-4 mt-2">
+                                <button onClick={() => startEdit(msg)} className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                                    <FontAwesomeIcon icon={faEdit} /> Editar
+                                </button>
+                                <button onClick={() => handleDeleteMessage(msg.id)} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+                                    <FontAwesomeIcon icon={faTrash} /> Excluir
+                                </button>
+                            </div>
+                        )}
+                        </div>
+                    </div>
+                )})}
+            </div>
+
+            <div className="pt-4 border-t border-gray-200 -mx-6 px-6 -mb-6 pb-6 bg-gray-50 rounded-b-xl mt-4">
+                <div className="relative">
+                    <textarea 
+                        className="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none text-sm"
+                        placeholder="Digite uma observação ou mensagem..."
+                        rows={2}
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                            }
+                        }}
+                    />
+                    <button 
+                        onClick={handleSendMessage}
+                        disabled={!newMessage.trim()}
+                        className="absolute right-2 bottom-2 p-2 text-blue-600 hover:text-blue-800 disabled:text-gray-300 transition-colors"
+                        title="Enviar"
+                    >
+                        <FontAwesomeIcon icon={faPaperPlane} />
+                    </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1 text-right">Pressione Enter para enviar</p>
+            </div>
+        </>
+    );
+};
+
 // Componente para renderizar o formulário de uma única cotação
 const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = ({ id, children }) => {
     const navigate = useNavigate();
@@ -63,7 +256,6 @@ const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = 
     const [prices, setPrices] = useState<Record<string, string>>({});
     const [brands, setBrands] = useState<Record<string, string>>({});
     const [validityDate, setValidityDate] = useState("");
-    const [observation, setObservation] = useState("");
     const [ciapagDiscount, setCiapagDiscount] = useState("");
     const [validationMsg, setValidationMsg] = useState<{msg: string, type: 'error' | 'success'} | null>(null);
     const [lastSaved, setLastSaved] = useState<string | null>(null);
@@ -74,14 +266,17 @@ const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = 
     
     // Ref para rastrear alterações para o auto-save
     const hasChangesRef = useRef(false);
-    const stateRef = useRef({ prices, brands, validityDate, observation, ciapagDiscount });
+    const stateRef = useRef({ prices, brands, validityDate, ciapagDiscount });
+
+    // ID do fornecedor fixo conforme solicitado anteriormente
+    const ID_FORNECEDOR = 126;
 
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
             try {
                 const [detailData, itemsData] = await Promise.all([
-                    getCotacaoDetail(id, 126),
+                    getCotacaoDetail(id, ID_FORNECEDOR),
                     getCotacaoItems(id)
                 ]);
                 setDetail(detailData);
@@ -94,7 +289,6 @@ const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = 
                     setPrices(draft.prices || {});
                     setBrands(draft.brands || {});
                     setValidityDate(draft.validityDate || "");
-                    setObservation(draft.observation || "");
                     setCiapagDiscount(draft.ciapagDiscount || "");
                     if (draft.updatedAt) {
                         const date = new Date(draft.updatedAt);
@@ -125,8 +319,8 @@ const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = 
 
     // Atualiza a ref do estado para o auto-save acessar os valores mais recentes
     useEffect(() => {
-        stateRef.current = { prices, brands, validityDate, observation, ciapagDiscount };
-    }, [prices, brands, validityDate, observation, ciapagDiscount]);
+        stateRef.current = { prices, brands, validityDate, ciapagDiscount };
+    }, [prices, brands, validityDate, ciapagDiscount]);
 
     // Auto-save a cada 30 segundos se houver alterações
     useEffect(() => {
@@ -189,7 +383,7 @@ const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = 
     const handleSaveDraft = (silent = false) => {
         const now = new Date();
         // Usa os valores da ref para garantir que o auto-save pegue o estado atual dentro do intervalo
-        const currentData = silent ? stateRef.current : { prices, brands, validityDate, observation, ciapagDiscount };
+        const currentData = silent ? stateRef.current : { prices, brands, validityDate, ciapagDiscount };
         
         const draftData = {
             ...currentData,
@@ -221,7 +415,6 @@ const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = 
         setPrices(initialPrices);
         setBrands(initialBrands);
         setValidityDate("");
-        setObservation("");
         setCiapagDiscount("");
         setShowConfirmDiscard(false);
         setToast({ message: "Rascunho descartado.", type: 'info' });
@@ -480,46 +673,36 @@ const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = 
                     </div>
                 </div>
 
-                {/* Validade e Observação */}
-                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
-                            Data de validade destes preços:
-                        </label>
-                        <input 
-                            type="date" 
-                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={validityDate}
-                            onChange={(e) => {
-                                setValidityDate(e.target.value);
-                                setValidationMsg(null);
-                                markAsChanged();
-                            }}
-                        />
-                        {validationMsg && (
-                            <p className={`text-sm mt-1 font-medium ${validationMsg.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
-                                {validationMsg.msg}
-                            </p>
-                        )}
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
-                            Observação para o Comprador:
-                        </label>
-                        <textarea 
-                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none"
-                            maxLength={500}
-                            value={observation}
-                            onChange={(e) => {
-                                setObservation(e.target.value);
-                                markAsChanged();
-                            }}
-                        ></textarea>
-                        <p className="text-xs text-gray-500 text-right mt-1">
-                            Restam {500 - observation.length} caracteres
+                {/* Validade */}
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Data de validade destes preços:
+                    </label>
+                    <input 
+                        type="date" 
+                        className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={validityDate}
+                        onChange={(e) => {
+                            setValidityDate(e.target.value);
+                            setValidationMsg(null);
+                            markAsChanged();
+                        }}
+                    />
+                    {validationMsg && (
+                        <p className={`text-sm mt-1 font-medium ${validationMsg.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+                            {validationMsg.msg}
                         </p>
-                    </div>
+                    )}
                 </div>
+
+                {/* Seção de Comentários */}
+                <section aria-labelledby="comments-heading" className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <QuoteComments 
+                        quoteId={id} 
+                        senderId={ID_FORNECEDOR} 
+                        recipientId={detail.id_comprador} 
+                    />
+                </section>
 
                 {/* Botões de Ação */}
                     <div className="flex flex-col gap-3">
