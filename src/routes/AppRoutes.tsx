@@ -20,6 +20,7 @@ import RegisterSeller from "../pages/public/RegisterSeller";
 import RegisterBuyer from "../pages/public/RegisterBuyer";
 import FAQ from "../pages/public/FAQ";
 import HowItWorks from "../pages/public/HowItWorks";
+import Suppliers from "../pages/public/Suppliers";
 
 export default function AppRoutes() {
   return (
@@ -31,9 +32,9 @@ export default function AppRoutes() {
         <Route path="/sobre" element={<About />} />
         <Route path="/contato" element={<Contact />} />
         <Route path="/planos" element={<Pricing />} />
-        <Route path="/planos" element={<RegisterSeller />} />
         <Route path="/cadastro" element={<RegisterBuyer />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/fornecedores" element={<Suppliers />} />
         <Route path="/funcionalidades" element={<HowItWorks />} />
       </Route>
 

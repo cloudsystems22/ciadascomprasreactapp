@@ -1,5 +1,6 @@
 import { Outlet, Link } from "react-router-dom";
 import PublicHeader from "../header/PublicHeader";
+import ScrollToTop from "../common/ScrollToTop";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEnvelope, faPhone, faMapMarkerAlt, faGlobe } from "@fortawesome/free-solid-svg-icons";
 import logoImg from '../../assets/LogociaSite.png';
@@ -78,6 +79,8 @@ export default function PublicLayout() {
           </div>
         </div>
       </footer>
+
+      <ScrollToTop />
     </div>
   );
 }
