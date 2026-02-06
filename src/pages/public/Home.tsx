@@ -10,6 +10,7 @@ import {
 import { Link } from "react-router-dom";
 import { useOnScreen } from "./useOnScreen";
 import { useRef } from "react";
+import SupplierCarousel from "../../components/common/SupplierCarousel";
 
 export default function Home() {
   const heroTextRef = useRef<HTMLDivElement>(null);
@@ -126,6 +127,9 @@ export default function Home() {
             </div>
         </div>
       </section>
+
+      {/* SUPPLIER CAROUSEL */}
+      <SupplierCarousel />
 
       {/* FOR BUYERS */}
       <section ref={buyersRef} className="py-20 bg-white">
