@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getCotacoesCards, getCotacaoItems, type CotacaoCard, type CotacaoItem } from '../../api/cotacoes';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHome, faSearch, faFilter, faSort, faEnvelope, faFlag, faInfoCircle, faCheck, faTimes, faUpload, faEye, faMapMarkerAlt, faCalendarAlt, faBolt, faExclamationCircle, faEdit } from "@fortawesome/free-solid-svg-icons";
+import { ID_FORNECEDOR } from '../../auth/auth';
 
 // Helper para verificar se é "Novo" (menos de 30 dias)
 // Formato esperado: "04/02/2026 12:24:21"
@@ -43,8 +44,6 @@ const Quotes: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // ID do fornecedor fixo conforme solicitado, idealmente viria do contexto de autenticação
-  const ID_FORNECEDOR = 126; 
   const LIMIT = 30; // Itens por página
 
   const fetchCotacoes = async () => {

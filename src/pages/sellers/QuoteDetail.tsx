@@ -10,6 +10,7 @@ import {
     getCotacaoItems, getCotacaoDetail, getMensagensCotacao, createMensagemCotacao, updateMensagemCotacao, deleteMensagemCotacao,
     type CotacaoItem, type CotacaoDetail, type MensagemCotacao 
 } from '../../api/cotacoes';
+import { ID_FORNECEDOR } from '../../auth/auth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../../assets/LogociaSite.png';
@@ -267,9 +268,6 @@ const QuoteResponseForm: React.FC<{ id: number, children?: React.ReactNode }> = 
     // Ref para rastrear alterações para o auto-save
     const hasChangesRef = useRef(false);
     const stateRef = useRef({ prices, brands, validityDate, ciapagDiscount });
-
-    // ID do fornecedor fixo conforme solicitado anteriormente
-    const ID_FORNECEDOR = 126;
 
     useEffect(() => {
         const loadData = async () => {

@@ -22,6 +22,7 @@ import FAQ from "../pages/public/FAQ";
 import HowItWorks from "../pages/public/HowItWorks";
 import Suppliers from "../pages/public/Suppliers";
 import PrivacyPolicy from "../pages/public/PrivacyPolicy"
+import CiapagSeller from "../pages/sellers/CiapagSeller";
 
 export default function AppRoutes() {
   return (
@@ -110,6 +111,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <OrderDetails />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/seller/ciapag"
+          element={
+            <ProtectedRoute role="seller">
+              <CiapagSeller />
             </ProtectedRoute>
           }
         />

@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHome, faArrowLeft, faFlag, faCheckCircle, faCalendarAlt, faMapMarkerAlt, faEnvelope, faBolt, faTimes, faExclamationCircle } from "@fortawesome/free-solid-svg-icons";
 import { getCotacoesCards, getCotacaoItems, type CotacaoCard, type CotacaoItem } from '../../api/cotacoes';
+import { ID_FORNECEDOR } from '../../auth/auth';
 
 const QuoteDetails: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -16,9 +17,6 @@ const QuoteDetails: React.FC = () => {
     const [loadingItems, setLoadingItems] = useState(false);
     const [prices, setPrices] = useState<Record<number, string>>({});
     const [validationError, setValidationError] = useState<string | null>(null);
-
-    // ID do fornecedor fixo conforme solicitado
-    const ID_FORNECEDOR = 126;
 
     useEffect(() => {
         const idsParam = searchParams.get('ids');

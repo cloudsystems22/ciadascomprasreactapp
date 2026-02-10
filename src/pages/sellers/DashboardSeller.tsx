@@ -17,6 +17,7 @@ import {
   faSortDown,
 } from "@fortawesome/free-solid-svg-icons";
 import { getPedidos, getFaturamento, type Pedido as ApiPedido, type FaturamentoData } from "../../api/pedidos";
+import { ID_FORNECEDOR } from "../../auth/auth";
 
 interface OrderStat {
   label: string;
@@ -67,10 +68,8 @@ export default function DashboardSeller() {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const sellerId = 126; //5097; 
-        
         const params: any = { 
-            id_fornecedor_cli: sellerId, 
+            id_fornecedor_cli: ID_FORNECEDOR, 
             limit: 30,
             page: 1,
             sort_by: sortConfig?.key,
@@ -87,7 +86,7 @@ export default function DashboardSeller() {
 
         const [pedidosData, faturamento] = await Promise.all([
             getPedidos(params),
-            getFaturamento(sellerId)
+            getFaturamento(ID_FORNECEDOR)
         ]);
         console.log("Dados do gráfico de barras:", faturamento);
 
