@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
     faLandmark, 
@@ -14,20 +14,10 @@ import {
     faClock
 } from '@fortawesome/free-solid-svg-icons';
 import { faCcMastercard } from '@fortawesome/free-brands-svg-icons';
+import { getCiapagSaldo, type CiapagSaldoResponse } from '../../api/ciapag';
+import { ID_RECEBEDOR_CIAPAG } from '../../auth/auth';
 
 // --- Dados Mocados ---
-
-const summaryData = [
-    { title: 'Disponível', amount: 'R$ 1.650,00', icon: faCheckCircle, color: 'text-green-500' },
-    { title: 'Em espera', amount: 'R$ 850,00', icon: faClock, color: 'text-yellow-500' },
-    { title: 'Transferido', amount: 'R$ 10.300,00', icon: faArrowUp, color: 'text-blue-500' },
-];
-
-const billingInformation = [
-    { name: 'Oliver Liam', company: 'Viking Burrito', email: 'oliver@burrito.com', id: 'FRB1235476' },
-    { name: 'Lucas Harper', company: 'Stone Tech Zone', email: 'lucas@stone-tech.com', id: 'FRB1235476' },
-    { name: 'Ethan James', company: 'Fiber Notion', email: 'ethan@fiber.com', id: 'FRB1235476' },
-];
 
 const invoices = [
     { date: 'Março, 01, 2024', id: '#MS-415646', amount: 'R$ 180' },
@@ -58,6 +48,30 @@ const transactions = [
 // --- Componente Principal ---
 
 const CiapagSeller: React.FC = () => {
+    const [saldoData, setSaldoData] = useState<CiapagSaldoResponse | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSaldo = async () => {
+            try {
+                const data = await getCiapagSaldo(ID_RECEBEDOR_CIAPAG);
+                setSaldoData(data);
+            } catch (error) {
+                console.error("Erro ao carregar saldo", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSaldo();
+    }, []);
+
+    const formatCurrency = (amount: number) => {
+        // A API retorna o valor em centavos (inteiro), então dividimos por 100
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount / 100);
+    };
+
+    if (loading) return <div className="p-8 text-center text-gray-500">Carregando informações financeiras...</div>;
+
     return (
         <div className="p-6 bg-gray-50 min-h-screen font-sans">
             {/* Cabeçalho */}
@@ -78,7 +92,7 @@ const CiapagSeller: React.FC = () => {
                             </div>
                             <div>
                                 <p className="text-xs opacity-70">Saldo Disponível</p>
-                                <p className="text-3xl font-bold mb-2">R$ 1.650,00</p>
+                                <p className="text-3xl font-bold mb-2">{saldoData ? formatCurrency(saldoData.available_amount) : 'R$ 0,00'}</p>
                                 <div className="flex justify-between items-start">
                                     <p className="text-xl font-mono tracking-wider">**** **** **** 7852</p>
                                 </div>
@@ -87,44 +101,55 @@ const CiapagSeller: React.FC = () => {
 
                         {/* Cards de Totais */}
                         <div className="space-y-4 flex flex-col justify-between">
-                            {summaryData.map((card, index) => (
-                                <div key={index} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-4 ${card.color.replace('text-', 'bg-').replace('500', '100')}`}>
-                                        <FontAwesomeIcon icon={card.icon} className={`${card.color} text-xl`} />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-500 font-medium">{card.title}</p>
-                                        <p className="text-xl font-bold text-gray-800">{card.amount}</p>
-                                    </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                                <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-4 bg-green-100">
+                                    <FontAwesomeIcon icon={faCheckCircle} className="text-green-500 text-xl" />
                                 </div>
-                            ))}
+                                <div>
+                                    <p className="text-sm text-gray-500 font-medium">Disponível</p>
+                                    <p className="text-xl font-bold text-gray-800">{saldoData ? formatCurrency(saldoData.available_amount) : 'R$ 0,00'}</p>
+                                </div>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                                <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-4 bg-yellow-100">
+                                    <FontAwesomeIcon icon={faClock} className="text-yellow-500 text-xl" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500 font-medium">Em espera</p>
+                                    <p className="text-xl font-bold text-gray-800">{saldoData ? formatCurrency(saldoData.waiting_funds_amount) : 'R$ 0,00'}</p>
+                                </div>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                                <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-4 bg-blue-100">
+                                    <FontAwesomeIcon icon={faArrowUp} className="text-blue-500 text-xl" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500 font-medium">Transferido</p>
+                                    <p className="text-xl font-bold text-gray-800">{saldoData ? formatCurrency(saldoData.transferred_amount) : 'R$ 0,00'}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* Informações de Faturamento */}
                     <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-gray-800">Contas para Saque</h3>
-                            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2">
-                                <FontAwesomeIcon icon={faPlus} />
-                                Adicionar Conta
-                            </button>
+                            <h3 className="text-lg font-bold text-gray-800">Dados do Recebedor</h3>
                         </div>
                         <div className="space-y-4">
-                            {billingInformation.map((item, index) => (
-                                <div key={index} className="bg-gray-50 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-gray-100">
+                            {saldoData && saldoData.recipient && (
+                                <div className="bg-gray-50 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-gray-100">
                                     <div>
-                                        <h4 className="font-bold text-gray-800">{item.name}</h4>
-                                        <p className="text-sm text-gray-500 mt-1">Empresa: <span className="font-medium text-gray-700">{item.company}</span></p>
-                                        <p className="text-sm text-gray-500">Email: <span className="font-medium text-gray-700">{item.email}</span></p>
-                                        <p className="text-sm text-gray-500">ID Fiscal: <span className="font-medium text-gray-700">{item.id}</span></p>
+                                        <h4 className="font-bold text-gray-800">{saldoData.recipient.name}</h4>
+                                        <p className="text-sm text-gray-500 mt-1">Documento: <span className="font-medium text-gray-700">{saldoData.recipient.document}</span></p>
+                                        <p className="text-sm text-gray-500">Email: <span className="font-medium text-gray-700">{saldoData.recipient.email}</span></p>
+                                        <p className="text-sm text-gray-500">Status: <span className={`font-medium ${saldoData.recipient.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>{saldoData.recipient.status === 'active' ? 'Ativo' : saldoData.recipient.status}</span></p>
                                     </div>
                                     <div className="flex gap-4 text-xs font-bold uppercase tracking-wider">
-                                        <button className="text-red-500 hover:text-red-700 transition-colors">Deletar</button>
-                                        <button className="text-gray-600 hover:text-blue-600 transition-colors">Editar</button>
+                                        <span className="text-gray-400">ID: {saldoData.recipient.id}</span>
                                     </div>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
                 </div>
