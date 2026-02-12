@@ -183,9 +183,38 @@ export const getCiapagSaldo = async (id: string): Promise<CiapagSaldoResponse> =
 export const getCiapagCobranca = async (id: string): Promise<CiapagInvoiceDetail> => {
     try {
         const response = await api.get('/ciapag/pagamentos/cobrancas', { params: { id } });
+        // Verifica se o retorno é paginado e extrai o primeiro item
+        if (response.data && Array.isArray(response.data.data)) {
+            return response.data.data[0];
+        }
         return response.data;
     } catch (error) {
         console.error("Erro ao buscar detalhes da cobrança CiaPag", error);
+        throw error;
+    }
+};
+
+export const getCiapagCobrancas = async (customer_id: string, created_since: string, created_until: string, page: number = 1, size: number = 10): Promise<CiapagInvoiceDetail[]> => {
+    try {
+        const params = {
+            customer_id,
+            created_since,
+            created_until,
+            page,
+            size
+        };
+        const url = '/ciapag/pagamentos/cobrancas';
+        console.log('Buscando cobranças CiaPag:', { url, params });
+        const response = await api.get(url, { params });
+        console.log('Dados recebidos de cobranças CiaPag:', response.data);
+        
+        if (response.data && Array.isArray(response.data.data)) {
+            return response.data.data;
+        }
+        return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+        console.error("Erro ao buscar cobranças CiaPag", error);
+        console.error('Detalhes do erro:', (error as any).response || (error as any).message);
         throw error;
     }
 };

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
     faLandmark, 
@@ -18,8 +19,10 @@ import {
     faSearch
 } from '@fortawesome/free-solid-svg-icons';
 import { faCcMastercard } from '@fortawesome/free-brands-svg-icons';
-import { getCiapagSaldo, getCiapagExtrato, getCiapagRecebiveis, getCiapagCobranca, type CiapagSaldoResponse, type ExtratoItem, type CiapagReceivable, type CiapagInvoiceDetail } from '../../api/ciapag';
+import { getCiapagSaldo, getCiapagExtrato, getCiapagCobrancas, getCiapagCobranca, type CiapagSaldoResponse, type ExtratoItem, type CiapagInvoiceDetail } from '../../api/ciapag';
+import jsPDF from 'jspdf';
 import { ID_RECEBEDOR_CIAPAG } from '../../auth/auth';
+import ciapagLogo from '../../assets/Ciapag.png';
 
 // --- Dados Mocados ---
 interface TransactionItem {
@@ -40,13 +43,14 @@ interface GroupedTransaction {
 const CiapagSeller: React.FC = () => {
     const [saldoData, setSaldoData] = useState<CiapagSaldoResponse | null>(null);
     const [transactions, setTransactions] = useState<GroupedTransaction[]>([]);
-    const [invoices, setInvoices] = useState<CiapagReceivable[]>([]);
+    const [invoices, setInvoices] = useState<CiapagInvoiceDetail[]>([]);
     const [selectedInvoice, setSelectedInvoice] = useState<CiapagInvoiceDetail | null>(null);
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [transactionsLoading, setTransactionsLoading] = useState(true);
     const [invoicesLoading, setInvoicesLoading] = useState(true);
     const [invoiceDetailLoading, setInvoiceDetailLoading] = useState(false);
+    const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'pending' | 'failed' | 'canceled'>('all');
     const [selectedDate, setSelectedDate] = useState(() => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -131,7 +135,9 @@ const CiapagSeller: React.FC = () => {
         // Fetch Recebíveis (Faturas)
         setInvoicesLoading(true);
         try {
-            const data = await getCiapagRecebiveis(ID_RECEBEDOR_CIAPAG, selectedDate);
+            const today = new Date();
+            const endDate = today.toISOString().split('T')[0];
+            const data = await getCiapagCobrancas(ID_RECEBEDOR_CIAPAG, selectedDate, endDate);
             setInvoices(data);
         } catch (error) {
             console.error("Erro ao carregar faturas", error);
@@ -176,6 +182,93 @@ const CiapagSeller: React.FC = () => {
         }
         return `- ${formatted}`;
     };
+
+    const generateInvoicePDF = (invoice: CiapagInvoiceDetail, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+
+        const doc = new jsPDF();
+        const img = new Image();
+        img.src = ciapagLogo;
+
+        img.onload = () => {
+            // Logo
+            doc.addImage(img, 'PNG', 14, 10, 35, 10);
+
+            // Header
+            doc.setFontSize(22);
+            doc.setTextColor(40, 40, 40);
+            doc.text("Recibo de Pagamento", 105, 20, { align: "center" });
+            
+            // Info Box
+            doc.setDrawColor(220, 220, 220);
+            doc.setFillColor(250, 250, 250);
+            doc.roundedRect(14, 30, 182, 30, 3, 3, 'FD');
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text("Fatura", 20, 40);
+            doc.text("Data", 80, 40);
+            doc.text("Status", 140, 40);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.text(invoice.code, 20, 48);
+            doc.text(new Date(invoice.created_at).toLocaleDateString('pt-BR'), 80, 48);
+            
+            const status = invoice.status === 'paid' ? 'PAGO' : invoice.status.toUpperCase();
+            if (invoice.status === 'paid') doc.setTextColor(0, 128, 0);
+            else doc.setTextColor(200, 150, 0);
+            doc.text(status, 140, 48);
+            
+            // Customer
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.text("Dados do Cliente", 14, 75);
+            doc.setLineWidth(0.5);
+            doc.line(14, 78, 196, 78);
+            
+            doc.setFontSize(10);
+            doc.text(`Nome: ${invoice.customer.name}`, 14, 88);
+            doc.text(`Documento: ${invoice.customer.document}`, 14, 94);
+            doc.text(`Email: ${invoice.customer.email}`, 14, 100);
+            
+            // Payment Details
+            doc.setFontSize(14);
+            doc.text("Detalhes do Pagamento", 14, 115);
+            doc.line(14, 118, 196, 118);
+            
+            doc.setFontSize(10);
+            const transaction = invoice.last_transaction;
+            if (transaction) {
+                doc.text(`Método: ${invoice.payment_method === 'credit_card' ? 'Cartão de Crédito' : invoice.payment_method}`, 14, 128);
+                if (transaction.card) {
+                    doc.text(`Cartão: ${transaction.card.brand} **** ${transaction.card.last_four_digits}`, 14, 134);
+                }
+                doc.text(`Parcelas: ${transaction.installments}x`, 14, 140);
+                doc.text(`NSU: ${transaction.acquirer_nsu}`, 14, 146);
+            }
+            
+            // Total
+            doc.setFillColor(240, 248, 255);
+            doc.rect(14, 160, 182, 20, 'F');
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Valor Total: ${formatCurrency(invoice.amount)}`, 185, 173, { align: "right" });
+            
+            // Footer
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`ID da Transação: ${invoice.id}`, 14, 280);
+            doc.text("Gerado via Cia das Compras", 196, 280, { align: "right" });
+
+            doc.save(`Fatura_${invoice.code}.pdf`);
+        };
+    };
+
+    const filteredInvoices = invoices.filter(invoice => {
+        if (invoiceFilter === 'all') return true;
+        return invoice.status === invoiceFilter;
+    });
 
     if (loading) return <div className="p-8 text-center text-gray-500">Carregando informações financeiras...</div>;
 
@@ -281,31 +374,63 @@ const CiapagSeller: React.FC = () => {
                     {/* Faturas */}
                     <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col h-[480px]">
                         <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                            <h3 className="text-lg font-bold text-gray-800">Faturas</h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-lg font-bold text-gray-800">Faturas</h3>
+                                <Link to="/seller/ciapag/charges" className="text-xs text-blue-600 hover:underline font-medium">(Ver todas)</Link>
+                            </div>
+                            <select
+                                className="text-xs border border-gray-300 rounded px-2 py-1 outline-none focus:border-blue-500 text-gray-600 bg-white cursor-pointer"
+                                value={invoiceFilter}
+                                onChange={(e) => setInvoiceFilter(e.target.value as 'all' | 'paid' | 'pending' | 'failed' | 'canceled')}
+                            >
+                                <option value="all">Todas</option>
+                                <option value="paid">Pagas</option>
+                                <option value="pending">Pendentes</option>
+                                <option value="failed">Falhou</option>
+                                <option value="canceled">Canceladas</option>
+                            </select>
                         </div>
                         <div className="overflow-y-auto flex-grow pr-2">
                             <ul className="space-y-4">
                             {invoicesLoading ? (
                                 <div className="text-center py-4 text-gray-500 text-xs">Carregando faturas...</div>
-                            ) : invoices.length > 0 ? (
-                                invoices.map((invoice) => (
+                            ) : filteredInvoices.length > 0 ? (
+                                filteredInvoices.map((invoice) => (
                                     <li 
                                         key={invoice.id} 
                                         className="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-200"
-                                        onClick={() => handleOpenInvoice(invoice.charge_id)}
+                                        onClick={() => handleOpenInvoice(invoice.id)}
                                     >
                                         <div>
-                                            <p className="font-semibold text-gray-700 text-sm">
-                                                {new Date(invoice.payment_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-semibold text-gray-700 text-sm">
+                                                    {invoice.code}
+                                                </p>
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                    invoice.status === 'paid' ? 'bg-green-100 text-green-700' : 
+                                                    invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                    invoice.status === 'failed' ? 'bg-red-100 text-red-700' :
+                                                    invoice.status === 'canceled' ? 'bg-gray-200 text-gray-600' :
+                                                    'bg-gray-100 text-gray-700'
+                                                }`}>
+                                                    {invoice.status === 'paid' ? 'Pago' : 
+                                                     invoice.status === 'pending' ? 'Pendente' :
+                                                     invoice.status === 'failed' ? 'Falhou' :
+                                                     invoice.status === 'canceled' ? 'Cancelada' :
+                                                     invoice.status}
+                                                </span>
+                                            </div>
                                             <p className="text-xs text-gray-500">
-                                                Orig: {new Date(invoice.original_payment_date).toLocaleDateString('pt-BR')}
+                                                {new Date(invoice.created_at).toLocaleDateString('pt-BR')}
                                             </p>
                                             <p className="text-xs text-gray-500">#{invoice.id}</p>
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <span className="font-semibold text-gray-600 text-sm">{formatCurrency(invoice.amount)}</span>
-                                            <button className="text-gray-500 hover:text-blue-600 flex items-center gap-1 text-xs font-bold">
+                                            <button 
+                                                className="text-gray-500 hover:text-blue-600 flex items-center gap-1 text-xs font-bold"
+                                                onClick={(e) => generateInvoicePDF(invoice, e)}
+                                            >
                                                 <FontAwesomeIcon icon={faFileInvoice} />
                                                 PDF
                                             </button>
@@ -381,8 +506,18 @@ const CiapagSeller: React.FC = () => {
                                     <div className="flex flex-col sm:flex-row gap-4 justify-between bg-gray-50 p-4 rounded-xl border border-gray-100">
                                         <div>
                                             <p className="text-sm text-gray-500 mb-1">Status</p>
-                                            <span className={`px-3 py-1 rounded-full text-sm font-bold capitalize ${selectedInvoice.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                {selectedInvoice.status === 'paid' ? 'Pago' : selectedInvoice.status}
+                                            <span className={`px-3 py-1 rounded-full text-sm font-bold capitalize ${
+                                                selectedInvoice.status === 'paid' ? 'bg-green-100 text-green-700' : 
+                                                selectedInvoice.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                selectedInvoice.status === 'failed' ? 'bg-red-100 text-red-700' :
+                                                selectedInvoice.status === 'canceled' ? 'bg-gray-200 text-gray-600' :
+                                                'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {selectedInvoice.status === 'paid' ? 'Pago' : 
+                                                 selectedInvoice.status === 'pending' ? 'Pendente' :
+                                                 selectedInvoice.status === 'failed' ? 'Falhou' :
+                                                 selectedInvoice.status === 'canceled' ? 'Cancelada' :
+                                                 selectedInvoice.status}
                                             </span>
                                         </div>
                                         <div className="text-left sm:text-right">
@@ -476,7 +611,14 @@ const CiapagSeller: React.FC = () => {
                             )}
 
                         </div>
-                        <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end flex-shrink-0">
+                        <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3 flex-shrink-0">
+                            <button 
+                                onClick={() => selectedInvoice && generateInvoicePDF(selectedInvoice)}
+                                className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            >
+                                <FontAwesomeIcon icon={faFileInvoice} />
+                                Baixar PDF
+                            </button>
                             <button onClick={handleCloseInvoice} className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition-colors">
                                 Fechar
                             </button>
